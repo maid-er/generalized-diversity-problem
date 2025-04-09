@@ -1,5 +1,7 @@
-# br-grasp-for-multi-objective-diversity-problem
-This repository contains a Biased GRASP algorithm with VND designed to solve the Bi-Objective Generalized Diversity Problem (BOGDP).
+# generalized-diversity-problem
+This repository contains metaheuristic algorithms to solve the Bi-Objective Generalized Diversity Problem (BOGDP).
+
+The directory `src` contains the source code of a Biased GRASP algorithm with VND, while in `src_ga` the BOGDP is solved with Genetic Algorithms.
 
 ## Development environment
 
@@ -49,6 +51,36 @@ In this case the B-GRASP with VND algorithm will be executed twice.
 In the first place, the algorithm will be configured with a `beta` value of 0.5 and the `neighborhoods` to be explored in the Local Search phase will be a 1-1 switch, 1-2 switch, and 2-1 switch between selected and unselected nodes.
 
 Next, in the second run, the algorithm will find the solutions for the BOCDP with a random `beta` value for each construction, and a standard First Improve Local Search with a 1-1 node exchange.
+
+## Respository structure
+
+```
+├── config
+├── evaluation
+├── instances
+├── logs
+├── notebooks
+├── output
+├── src
+├── .gitignore
+├── README.md
+└── requirements.txt
+```
+
+The input data of the instances used to evaluate the algorithms must be located in the `instances` directory with the following structure:
+
+```
+instances
+└── GDP
+    ├── GKD-d
+    |    ├── GKD_d_1_n2000_coor_b02_k02.txt
+    |    ├── GKD_d_1_n2000_coor_b02_k03.txt
+    |    └── ...
+    └── GKD-b_n50
+         ├── GKD-b_11_n50_b02_m5_k02.txt
+         ├── GKD-b_11_n50_b02_m5_k03.txt
+         └── ...
+```
 
 ## Code execution
 
