@@ -59,10 +59,14 @@ def construct(inst: dict, config: dict, objective: int) -> Solution:
         if len(cl) == 0:  # If the cost won't be met with any new element
             break
         if objective == 0:
-            cl.sort(key=lambda row: -row[3])
+            if random.random()< 0.5:
+                cl.sort(key=lambda row: -row[3])
+            else:
+                cl.sort(key=lambda row: -row[objective])
+
         else:
             cl.sort(key=lambda row: -row[objective])
-        print('Sorted biased candidate list with %s objective.', OBJECTIVE_FUNCTIONS.get(objective))
+        #print('Sorted biased candidate list with %s objective.', OBJECTIVE_FUNCTIONS.get(objective))
 
         # Biased Randomization to select new node to add to solution
         if distribution == 'Geometric':
@@ -81,11 +85,11 @@ def construct(inst: dict, config: dict, objective: int) -> Solution:
 
         # If solution is feasible, save it in the solution list
         if sol.satisfies_capacity() and sol.satisfies_cost():
-            solution_list.append(copy.deepcopy(sol))
+            solution_list.append(sol.clone())
 
     # Check if any feasible solution is constructed
     if len(solution_list) == 0:
-        logging.error('No feasible solution reached in the construction phase.')
+        # logging.error('No feasible solution reached in the construction phase.')
         sol = Solution(inst)
         sol.of_MaxMin = 0
         solution_list.append(sol)
@@ -141,7 +145,7 @@ def deconstruct(inst: dict, config: dict, objective: int) -> Solution:
             cl.sort(key=lambda row: row[3])
         else:
             cl.sort(key=lambda row: row[objective])
-        print('Sorted biased candidate list with %s objective.', OBJECTIVE_FUNCTIONS.get(objective))
+        #print('Sorted biased candidate list with %s objective.', OBJECTIVE_FUNCTIONS.get(objective))
 
         # Biased Randomization to select new node to add to solution
         if distribution == 'Geometric':
@@ -160,11 +164,11 @@ def deconstruct(inst: dict, config: dict, objective: int) -> Solution:
 
         # If solution is feasible, save it in the solution list
         if sol.satisfies_capacity() and sol.satisfies_cost():
-            solution_list.append(copy.deepcopy(sol))
+            solution_list.append(sol.clone())
 
     # Check if any feasible solution is constructed
     if len(solution_list) == 0:
-        logging.error('No feasible solution reached in the construction phase.')
+        # logging.error('No feasible solution reached in the construction phase.')
         sol = Solution(inst)
         sol.of_MaxMin = 0
         solution_list.append(sol)

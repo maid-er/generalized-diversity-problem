@@ -31,10 +31,10 @@ def execute(inst: dict, config: dict, objective: int, iteration: int) -> Solutio
     ls_strategy = config.get('strategy')
     ls_scheme = config.get('scheme')
 
-    print('Executing GRASP algorithm with: ')
-    print('\tBiased construction with parameters %s', parameters)
-    print('\t%s Local Search strategy following the %s Improve scheme',
-          ls_strategy, ls_scheme)
+    # print('Executing GRASP algorithm with: ')
+    # print('\tBiased construction with parameters %s', parameters)
+    # print('\t%s Local Search strategy following the %s Improve scheme',
+    #       ls_strategy, ls_scheme)
 
     # Construction phase (Biased GRASP)
     if iteration % 4 in {0, 1}:
@@ -42,7 +42,7 @@ def execute(inst: dict, config: dict, objective: int, iteration: int) -> Solutio
     elif iteration % 4 in {2, 3}:
         solution_list = biased_randomized.deconstruct(inst, config, objective)
 
-    c_sol_list = copy.deepcopy(solution_list)
+    c_sol_list = [s.clone() for s in solution_list]
 
     # Local Search phase
     if len(solution_list) > 1:

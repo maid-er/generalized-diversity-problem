@@ -60,12 +60,25 @@ def plot_pareto_fronts(output_dir: str, inst_set: str, inst_subset: str, instanc
                                          ' & Capacity: ' + result_table.Capacity.astype(str))
 
             result_table.sort_values(by=['MaxMin', 'MaxSum'], inplace=True)
-            fig.add_scatter(x=result_table['MaxMin'], y=result_table['MaxSum'],
-                            text=result_table[legend_name],
-                            mode='markers', line_color=colors[color_count], row=row, col=col,
-                            name=alg, legendgroup=alg,
-                            showlegend=True if count == 0 else False)
+            is_special_alg = alg in ['NSGA2', 'SPEA2']
+            marker_style = dict(
+                color=colors[color_count],
+                symbol='x' if is_special_alg else 'circle',
+                size=6 if is_special_alg else 10
+            )
 
+            fig.add_scatter(
+                x=result_table['MaxMin'],
+                y=result_table['MaxSum'],
+                text=result_table[legend_name],
+                mode='markers',
+                marker=marker_style,
+                row=row,
+                col=col,
+                name=alg,
+                legendgroup=alg,
+                showlegend=True if count == 0 else False
+            )
             if col == 2:
                 row += 1
                 col = 1

@@ -10,7 +10,7 @@ logging = load_logger(__name__)
 if __name__ == '__main__':
     logging.info('Initializing diversity maximization with NSGA-II algorithm...')
 
-    path = os.path.join('instances', 'GDP', 'GKD-b_n50')
+    path = os.path.join('instances', 'GDP', 'MDG-b')
 
     for n in range(1):
         execution.execute_directory(path)

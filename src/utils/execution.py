@@ -51,6 +51,7 @@ def execute_instance(path: str, config: dict, results: OutputHandler) -> float:
         construction_approach = config.get('mo_approach_C')
         objective = i % 2  # 0: MaxSum, 1: MaxMin (for default AltBwC approach)
 
+
         # Check if a single objective approach have been defined
         if construction_approach == 'MaxSum':
             objective = 0
@@ -58,7 +59,7 @@ def execute_instance(path: str, config: dict, results: OutputHandler) -> float:
             objective = 1
 
         # Run B-GRASP-VND
-        print(f'Finding solution #{i+1}')
+        # print(f'Finding solution #{i+1}')
         c_sol_list, solution_list = grasp.execute(inst, config, objective, i)
         # Save solution set found in this IT
         all_c_solutions += c_sol_list

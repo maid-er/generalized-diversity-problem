@@ -13,6 +13,9 @@ from structure.solution import Solution
 
 from utils.logger import load_logger
 
+import random
+
+
 logging = load_logger(__name__)
 
 
@@ -66,16 +69,17 @@ def try_improvement(sol: Solution, objective: int, improvement_criteria: str,
         unselected_combinations = [combo_u for combo_u in unselected_combinations
                                    if min(get_all_pairwise_distances(sol.instance,
                                                                      [u[2] for u
-                                                                      in combo_u])) > sol.of_MaxMin]
-
+                                                                      in combo_u])) >= sol.of_MaxMin]
+    random.shuffle(unselected_combinations)
+    random.shuffle(selected_combinations)
     # For all the possible combinations between the selected elements
     for combo_s in selected_combinations:
         nodes_s = [s[2] for s in combo_s]  # Get node IDs
         # Pairwise distances between all the nodes in combo_s
-        pairwise_d = get_all_pairwise_distances(sol.instance, nodes_s)
+        pairwise_d_s = get_all_pairwise_distances(sol.instance, nodes_s)
         # Negative pairwise distance because it is considered twice (if there are 2 nodes)
-        d_sum_s = [s[0] for s in combo_s] + [-d for d in pairwise_d]
-        d_min_s = [s[1] for s in combo_s]  # + pairwise_d
+        d_sum_s = sum([s[0] for s in combo_s]) + sum(pairwise_d_s)
+        d_min_s = min([s[1] for s in combo_s])  # + pairwise_d
         # For all the possible combinations between the unselected elements
         for combo_u in unselected_combinations:
             nodes_u = [u[2] for u in combo_u]  # Get node IDs
@@ -84,26 +88,26 @@ def try_improvement(sol: Solution, objective: int, improvement_criteria: str,
                     and sol.satisfies_capacity(nodes_u, nodes_s)):
                 continue
             # Pairwise distances between all the nodes in combo_u
-            pairwise_d = get_all_pairwise_distances(sol.instance, nodes_u)
+            pairwise_d_u = get_all_pairwise_distances(sol.instance, nodes_u)
             # Calculate d_sum_u for each node in combo_u removing the potential removed nodes in
             # combo_s from solution
-            d_sum_u = [u[0] - sum([sol.instance['d'][u[2]][s[2]] for s in combo_s])
-                       for u in combo_u] + pairwise_d
+            d_sum_u = sum([u[0] - sum([sol.instance['d'][u[2]][s[2]] for s in combo_s])
+                       for u in combo_u])+ sum(pairwise_d_u)
             # Calculate d_min_u for each node in combo_u without considering the potential removed
             # nodes in combo_s
-            d_min_u = [sol.minimum_distance_to_solution(v[2], without=nodes_s)
-                       for v in combo_u] + pairwise_d
+            d_min_u = min([sol.minimum_distance_to_solution(v[2], without=nodes_s)
+                       for v in combo_u] + pairwise_d_u)
 
             # TODO IMPROVE CODE
             # Check if new solution improves the latest depending on the selected criteria
             if improvement_criteria == 'Dom':
-                new_improves_old = exchange_is_dominant(sum(d_sum_s), min(d_min_s),
-                                                        sum(d_sum_u), min(d_min_u))
+                new_improves_old = exchange_is_dominant(d_sum_s, d_min_s,
+                                                        d_sum_u, d_min_u)
             else:
                 if objective == 0:
-                    new_improves_old = sum(d_sum_s) < sum(d_sum_u)
+                    new_improves_old = d_sum_s < d_sum_u
                 else:
-                    new_improves_old = min(d_min_s) < min(d_min_u)
+                    new_improves_old = d_min_s < d_min_u
 
             if new_improves_old:
                 # Remove worst selected node(s) from solution

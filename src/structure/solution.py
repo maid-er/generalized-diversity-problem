@@ -12,6 +12,15 @@ class Solution:
         self.total_capacity = 0
         self.instance = instance
 
+    def clone(self):
+        new_sol = Solution(self.instance)
+        new_sol.solution_set = self.solution_set
+        new_sol.of_MaxMin = self.of_MaxMin
+        new_sol.of_MaxSum = self.of_MaxSum
+        new_sol.total_cost = self.total_cost
+        new_sol.total_capacity = self.total_capacity
+        return new_sol
+
     def add_to_solution(self, u: int, min_distance: float = -1, sum_variation: float = -1):
         '''Updates a solution by adding a specified element and its corresponding value to the
         objective function.

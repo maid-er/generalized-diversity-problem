@@ -53,8 +53,8 @@ def improve(sol: Solution, config: dict):
 
         # Get exchange list of current neighborhood [n_nodes_out, n_nodes_in]
         switch = neighborhoods[nb]
-        print('Local searching in neighbourhood %s with switch type %s and %s objective.',
-              nb, switch, 'Dom' if mo_approach == 'Dom' else OBJECTIVE_FUNCTIONS.get(objective))
+        #print('Local searching in neighbourhood %s with switch type %s and %s objective.',
+             # nb, switch, 'Dom' if mo_approach == 'Dom' else OBJECTIVE_FUNCTIONS.get(objective))
         if ls_scheme == 'Best':
             improve = bes.try_improvement(sol, switch=switch, max_time=max_time)
         elif ls_scheme == 'Fast':
@@ -62,12 +62,12 @@ def improve(sol: Solution, config: dict):
         elif ls_scheme == 'First':
             improve = fis.try_improvement(sol, objective, mo_approach, switch)
         if improve:
-            print('Improved solution.')
+            #print('Improved solution.')
             nb = 1  # Go back to first neighborhood
         else:
-            print('Unable to improve solution. Change neighborhood.')
+            #print('Unable to improve solution. Change neighborhood.')
             count += 1
             nb += 1  # Change to next neighborhood
         abs_count += 1
-    print('Local search stopped with %s total IT and %s IT with no improvements.',
-          abs_count, count)
+    #print('Local search stopped with %s total IT and %s IT with no improvements.',
+          #abs_count, count)

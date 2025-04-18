@@ -1,5 +1,5 @@
 - experiments: 1  # Number of experiments/executions per instance
-  iterations: 100  # Number of constructions
+  iterations: 502  # Number of constructions
   # Construction stage
   mo_approach_C: 'AltBwS'  # AltInS, or AltBwS (default) // for a single objective approach MaxSum or MaxMin
   parameters:
@@ -9,10 +9,8 @@
   mo_approach_LS: 'Dom'  # Dom, or Alt (PR?¿?¿) // for a single objective approach MaxSum or MaxMin
   strategy: 'VND'  # Standard, or VND
   neighborhoods:
-    1: [0, 1]
-    2: [1, 0]
-    3: [1, 1]
-    4: [1, 2]
+    1: [1, 1]
+    2: [1, 2]
     # 3: [2, 1]
   scheme: 'First'  # Fast, or First
   # Limits
