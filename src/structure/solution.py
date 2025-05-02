@@ -105,9 +105,10 @@ class Solution:
         in solution `sol`, excluding the distance to a specific node `without` if provided.
         '''
         d = 0
+        distance = self.instance['d'][u]
         for s in self.solution_set:
             if s not in without:
-                d += self.instance['d'][s][u]
+                d += distance[s]
         return round(d, 2)
 
     def minimum_distance_to_solution(self, u: int, without: list = [-1]) -> float:
@@ -127,9 +128,37 @@ class Solution:
         nodes in solution `sol`, excluding the distance to a specific node `without` if provided.
         '''
         min_d = 0x3f3f3f3f
+        distance = self.instance['d'][u]
         for s in self.solution_set:
             if s not in without and s != u:
-                d = self.instance['d'][s][u]
+                d = distance[s]
+                if d < min_d:
+                    min_d = d
+        return round(min_d, 2)
+
+    def minimum_distance_to_solution_bound(self, bound,  u: int, without: list = [-1]) -> float:
+        '''Calculates the minimum distance from a given node to the rest of the nodes in the
+        solution graph, excluding the node specified with the optional input `without`.
+
+        Args:
+          u (int): represents the ID of the candidate element (node) from which we want to find the
+        minimum distance to the rest of the nodes.
+          without (list): it is an optional parameter that allows you to specify the ID of the
+        node(s) that should be excluded from the search of the minimum distance. If the `without`
+        parameter is provided, the function will skip calculating the distance to the specified
+        value in the solution.
+
+        Returns:
+          (float): returns the minimum distance value from a given node `u` to the rest of the
+        nodes in solution `sol`, excluding the distance to a specific node `without` if provided.
+        '''
+        min_d = 0x3f3f3f3f
+        distance = self.instance['d'][u]
+        for s in self.solution_set:
+            if s not in without and s != u:
+                d = distance[s]
+                if d < bound:
+                    return 0
                 if d < min_d:
                     min_d = d
         return round(min_d, 2)
@@ -175,12 +204,39 @@ class Solution:
         # if v != -1:
         #     removing_candidate = sol['instance']['a'][v]
         possible_cost = self.total_cost
+        a = self.instance['a']
         if v != -1:
             for q in v:
-                possible_cost -= self.instance['a'][q]
+                possible_cost -= a[q]
         if u != -1:
             for q in u:
-                possible_cost += self.instance['a'][q]
+                possible_cost += a[q]
+
+        return possible_cost < self.instance['K']
+
+    def satisfies_cost_a(self, a,  u: int = -1, v: int = -1):
+        '''Checks if a solution meets the cost constraint.
+
+        Args:
+          u (int): it is an optional parameter that allows you to specify the ID of the candidate
+        element (node) that might be added to the solution set.
+          v (int): it is an optional parameter that allows you to specify the ID of the node that
+        might be removed from the solution set.
+
+        Returns:
+          (bool): indicates whether the new solution with node `u` added and `v` removed, would
+        meet the cost constraint.
+        '''
+        # removing_candidate = 0
+        # if v != -1:
+        #     removing_candidate = sol['instance']['a'][v]
+        possible_cost = self.total_cost
+        if v != -1:
+            for q in v:
+                possible_cost -= a[q]
+        if u != -1:
+            for q in u:
+                possible_cost += a[q]
 
         return possible_cost < self.instance['K']
 
@@ -204,5 +260,28 @@ class Solution:
         if u != -1:
             for q in u:
                 possible_capacity += self.instance['c'][q]
+
+        return possible_capacity > self.instance['B']
+
+    def satisfies_capacity_c(self, c, u: int = -1, v: int = -1):
+        '''Checks if a solution meets the capacity constraint.
+
+        Args:
+          u (int): it is an optional parameter that allows you to specify the ID of the candidate
+        element (node) that might be added to the solution set.
+          v (int): it is an optional parameter that allows you to specify the ID of the node that
+        might be removed from the solution set.
+
+        Returns:
+          (bool): indicates whether the new solution with node `u` added and `v` removed, would
+        meet the capacity constraint.
+        '''
+        possible_capacity = self.total_capacity
+        if v != -1:
+            for q in v:
+                possible_capacity -= c[q]
+        if u != -1:
+            for q in u:
+                possible_capacity += c[q]
 
         return possible_capacity > self.instance['B']

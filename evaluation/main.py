@@ -4,7 +4,7 @@ import utils
 
 '''Variables defined by the user'''
 SET = 'GDP'
-SUBSET = 'MDG-b'
+SUBSET = 'GKD-b_n150'
 PLOT_PARETO_FRONTS = True
 
 

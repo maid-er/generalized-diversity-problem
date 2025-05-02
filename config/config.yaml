@@ -1,5 +1,5 @@
 - experiments: 1  # Number of experiments/executions per instance
-  iterations: 502  # Number of constructions
+  iterations: 500  # Number of constructions
   # Construction stage
   mo_approach_C: 'AltBwS'  # AltInS, or AltBwS (default) // for a single objective approach MaxSum or MaxMin
   parameters:
@@ -15,6 +15,6 @@
   scheme: 'First'  # Fast, or First
   # Limits
   execution_limits:
-    max_time: 900  # Maximum execution time for B-GRASP with VND
+    max_time: 600  # Maximum execution time for B-GRASP with VND
     max_local_search_time: 15  # Maximum execution time for a LS iteration
     max_local_search_it: 200  # Maximum number of iterations in the LS

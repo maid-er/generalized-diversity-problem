@@ -142,7 +142,10 @@ def deconstruct(inst: dict, config: dict, objective: int) -> Solution:
         if len(cl) == 0:  # If the capacity won't be met with any new element
             break
         if objective == 0:
-            cl.sort(key=lambda row: row[3])
+            if random.random() < 0.5:
+                cl.sort(key=lambda row: row[3])
+            else:
+                cl.sort(key=lambda row: row[objective])
         else:
             cl.sort(key=lambda row: row[objective])
         #print('Sorted biased candidate list with %s objective.', OBJECTIVE_FUNCTIONS.get(objective))

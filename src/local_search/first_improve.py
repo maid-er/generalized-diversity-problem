@@ -43,6 +43,9 @@ def try_improvement(sol: Solution, objective: int, improvement_criteria: str,
     '''
     selected, unselected = create_selected_unselected(sol, objective)
 
+    a = sol.instance["a"]
+    c = sol.instance["c"]
+
     # Filter only possible dominant solutions for both objectives
     for constraint_objective in [0, 1]:
         worst_selected_constraint = min([s[constraint_objective] for s in selected])
@@ -78,14 +81,14 @@ def try_improvement(sol: Solution, objective: int, improvement_criteria: str,
         # Pairwise distances between all the nodes in combo_s
         pairwise_d_s = get_all_pairwise_distances(sol.instance, nodes_s)
         # Negative pairwise distance because it is considered twice (if there are 2 nodes)
-        d_sum_s = sum([s[0] for s in combo_s]) + sum(pairwise_d_s)
-        d_min_s = min([s[1] for s in combo_s])  # + pairwise_d
+        d_sum_s = sum(s[0] for s in combo_s) + sum(pairwise_d_s)
+        d_min_s = min(s[1] for s in combo_s)  # + pairwise_d
         # For all the possible combinations between the unselected elements
         for combo_u in unselected_combinations:
             nodes_u = [u[2] for u in combo_u]  # Get node IDs
             # If the constraints are not met with the new combo, try new exchange
-            if not (sol.satisfies_cost(nodes_u, nodes_s)
-                    and sol.satisfies_capacity(nodes_u, nodes_s)):
+            if not (sol.satisfies_cost_a(a, nodes_u, nodes_s)
+                    and sol.satisfies_capacity_c(c, nodes_u, nodes_s)):
                 continue
             # Pairwise distances between all the nodes in combo_u
             pairwise_d_u = get_all_pairwise_distances(sol.instance, nodes_u)
@@ -95,7 +98,11 @@ def try_improvement(sol: Solution, objective: int, improvement_criteria: str,
                        for u in combo_u])+ sum(pairwise_d_u)
             # Calculate d_min_u for each node in combo_u without considering the potential removed
             # nodes in combo_s
-            d_min_u = min([sol.minimum_distance_to_solution(v[2], without=nodes_s)
+
+            if not exchange_is_dominant(d_sum_s,0,d_sum_u,0):
+                continue
+
+            d_min_u = min([sol.minimum_distance_to_solution( v[2], without=nodes_s)
                        for v in combo_u] + pairwise_d_u)
 
             # TODO IMPROVE CODE
