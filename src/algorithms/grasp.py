@@ -10,7 +10,7 @@ from utils.logger import load_logger
 logging = load_logger(__name__)
 
 
-def execute(inst: dict, config: dict, objective: int, iteration: int) -> Solution:
+def execute(inst: dict, config: dict, objective: int, iteration: int, plot_dict, data_dict) -> Solution:
     '''The function executes a GRASP algorithm with a specified number of iterations and a given
     beta value, selecting the best solution found during the iterations.
 
@@ -40,7 +40,7 @@ def execute(inst: dict, config: dict, objective: int, iteration: int) -> Solutio
     if iteration % 4 in {0, 1}:
         solution_list = biased_randomized.construct(inst, config, objective)
     elif iteration % 4 in {2, 3}:
-        solution_list = biased_randomized.deconstruct(inst, config, objective)
+        solution_list, algorithm = biased_randomized.deconstruct(inst, config, objective)
 
     c_sol_list = [s.clone() for s in solution_list]
 
@@ -50,11 +50,20 @@ def execute(inst: dict, config: dict, objective: int, iteration: int) -> Solutio
     elif len(solution_list) == 1:
         ls_sols = [0]
 
-    for sol in [solution_list[i] for i in ls_sols]:  # Apply LS only to 1st and last solutions
+    solution_pre_ls = solution_list[0].clone()
+    # plot_dict.append({"solution": solution_pre_ls, "iteration": iteration, "algorithm": algorithm, "ls": False})
+    # data_dict.append({"MaxMin": solution_pre_ls.of_MaxMin, "MaxSum":solution_pre_ls.of_MaxSum, "iteration": iteration, "algorithm": algorithm, "ls": False})
+    for sol in [solution_list[i] for i in [0]]:  # Apply LS only to 1st and last solutions
         if len(sol.solution_set) > 0:  # Ensure a solution is constructed
             variable_neighborhood_descent.improve(sol, config)
+            # plot_dict.append({"solution": sol, "iteration": iteration, "algorithm": algorithm, "ls": True})
+            # data_dict.append({"MaxMin_pre": solution_pre_ls.of_MaxMin, "MaxSum_pre":solution_pre_ls.of_MaxSum,"MaxMin": sol.of_MaxMin, "MaxSum":sol.of_MaxSum, "iteration": iteration, "algorithm": algorithm})
+
+
+
 
     # c_sol_list = [c_sol_list[i] for i in [0, -1]]
     # solution_list = [solution_list[i] for i in [0, -1]]
 
     return c_sol_list, solution_list
+

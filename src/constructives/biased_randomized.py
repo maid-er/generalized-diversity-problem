@@ -47,6 +47,10 @@ def construct(inst: dict, config: dict, objective: int) -> Solution:
     u = random.randint(0, n-1)  # Select first node
     sol.add_to_solution(u)
     cl = create_candidate_list(sol, u)
+
+    random_value = random.random()
+    algorithm = "MaxMin"
+
     while sol.satisfies_cost() and len(cl) > 0:
         # If the approach is to alternate objectives IN each construction,
         # switch objective in each iteration, else maintain the (input) objective
@@ -59,10 +63,12 @@ def construct(inst: dict, config: dict, objective: int) -> Solution:
         if len(cl) == 0:  # If the cost won't be met with any new element
             break
         if objective == 0:
-            if random.random()< 0.5:
+            if random_value < 0.5:
                 cl.sort(key=lambda row: -row[3])
+                algorithm = "Cost"
             else:
                 cl.sort(key=lambda row: -row[objective])
+                algorithm = "MaxSum"
 
         else:
             cl.sort(key=lambda row: -row[objective])
@@ -94,7 +100,7 @@ def construct(inst: dict, config: dict, objective: int) -> Solution:
         sol.of_MaxMin = 0
         solution_list.append(sol)
 
-    return solution_list
+    return solution_list, algorithm
 
 
 def deconstruct(inst: dict, config: dict, objective: int) -> Solution:
@@ -130,6 +136,8 @@ def deconstruct(inst: dict, config: dict, objective: int) -> Solution:
     for u in range(n):
         sol.add_to_solution(u)
     cl = create_candidate_list(sol)
+    random_value = random.random()
+    algorithm = "MaxMin"
     while sol.satisfies_capacity() and len(cl) > 0:
         # If the approach is to alternate objectives IN each construction,
         # switch objective in each iteration, else maintain the (input) objective
@@ -142,12 +150,14 @@ def deconstruct(inst: dict, config: dict, objective: int) -> Solution:
         if len(cl) == 0:  # If the capacity won't be met with any new element
             break
         if objective == 0:
-            if random.random() < 0.5:
+            if random_value < 0.5:
                 cl.sort(key=lambda row: row[3])
+                algorithm = "Cost"
             else:
                 cl.sort(key=lambda row: row[objective])
+                algorithm = "MaxSum"
         else:
-            cl.sort(key=lambda row: row[objective])
+            cl.sort(key=lambda row: row[objective] )
         #print('Sorted biased candidate list with %s objective.', OBJECTIVE_FUNCTIONS.get(objective))
 
         # Biased Randomization to select new node to add to solution
@@ -176,7 +186,7 @@ def deconstruct(inst: dict, config: dict, objective: int) -> Solution:
         sol.of_MaxMin = 0
         solution_list.append(sol)
 
-    return solution_list
+    return solution_list, algorithm
 
 
 def create_candidate_list(sol: Solution, first: int = -1) -> list:

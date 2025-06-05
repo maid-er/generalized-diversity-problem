@@ -4,10 +4,13 @@ import os
 import pandas as pd
 
 from algorithms import grasp
-from structure import instance, dominance
+from structure import instance
 
 from utils.results import OutputHandler
 from utils.logger import load_logger
+import matplotlib.pyplot  as plt
+
+from src.structure import dominance
 
 logging = load_logger(__name__)
 
@@ -41,6 +44,8 @@ def execute_instance(path: str, config: dict, results: OutputHandler) -> float:
     max_time = config.get('execution_limits').get('max_time')
     start = datetime.datetime.now()
     # Construct a solution for the IT defined in config
+    plot_dict = []
+    data_dict = []
     for i in range(config.get('iterations')):
         # If time is exceeded stop execution
         if datetime.timedelta(seconds=max_time) < datetime.datetime.now() - start:
@@ -60,7 +65,7 @@ def execute_instance(path: str, config: dict, results: OutputHandler) -> float:
 
         # Run B-GRASP-VND
         # print(f'Finding solution #{i+1}')
-        c_sol_list, solution_list = grasp.execute(inst, config, objective, i)
+        c_sol_list, solution_list = grasp.execute(inst, config, objective, i, plot_dict, data_dict)
         # Save solution set found in this IT
         all_c_solutions += c_sol_list
         all_solutions += solution_list
@@ -82,7 +87,26 @@ def execute_instance(path: str, config: dict, results: OutputHandler) -> float:
                                                                       sol.total_cost,
                                                                       sol.total_capacity]
 
+
+
+    # plot_solutions(plot_dict)
+    #
+    #
+    # import json
+    #
+    #
+    # with open('data2.txt', 'w') as f:
+    #     json.dump(data_dict, f)
+
+    # data = []
+    # with open("data.txt", "r") as f:
+    #     for line in f:
+    #         data.append(json.loads(line))
+    #
+    # model_prediction(data_dict)
+
     # Find non-dominated solutions among all constructions
+
     is_non_dominated = dominance.get_nondominated_solutions(all_solutions)
     dom_result_table = result_table[is_non_dominated].reset_index(drop=True)
 
@@ -124,3 +148,39 @@ def execute_directory(directory: str, config: dict):
     for f in ficheros:
         path = os.path.join(directory, f)
         execute_instance(path, config, results)
+
+
+
+def plot_solutions(plot_dict):
+    # Define color scheme: e.g. dictionary {(objective, iteration_group): color}
+    color_map = {
+        ('group1', 'Cost', True): 'blue',
+        ('group1', 'Cost', False): 'lightblue',
+        ('group2', 'Cost', True): 'navy',
+        ('group2', 'Cost', False): 'lightblue',
+
+        ('group1', 'MaxMin', True): 'green',
+        ('group1', 'MaxMin', False): 'lightgreen',
+        ('group2', 'MaxMin', True): 'darkgreen',
+        ('group2', 'MaxMin', False): 'lightgreen',
+
+        ('group1', 'MaxSum', True): 'purple',
+        ('group1', 'MaxSum', False): 'violet',
+        ('group2', 'MaxSum', True): 'indigo',
+        ('group2', 'MaxSum', False): 'violet'
+    }
+
+    plt.figure()
+    for sol in plot_dict:
+        solution = sol["solution"]
+        group = 'group1' if sol["iteration"] % 4 in {0, 1, 2, 3} else 'group2'
+
+        color = color_map.get((group, sol["algorithm"], sol["ls"]), 'black')
+
+        plt.scatter(solution.of_MaxMin, solution.of_MaxSum, color=color)
+
+    plt.xlabel('x')
+    plt.ylabel('y')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
