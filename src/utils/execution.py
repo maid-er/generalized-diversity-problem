@@ -10,7 +10,7 @@ from utils.results import OutputHandler
 from utils.logger import load_logger
 import matplotlib.pyplot  as plt
 
-from src.structure import dominance
+from structure import dominance
 
 logging = load_logger(__name__)
 
@@ -74,16 +74,16 @@ def execute_instance(path: str, config: dict, results: OutputHandler) -> float:
         # for sol in solution_list:
         for c_sol in c_sol_list:
             selected_nodes = ' - '.join([str(s) for s in sorted(c_sol.solution_set)])
-            c_result_table.loc[len(c_result_table)] = [selected_nodes] + [c_sol.of_MaxSum,
-                                                                      c_sol.of_MaxMin,
+            c_result_table.loc[len(c_result_table)] = [selected_nodes] + [ round(c_sol.of_MaxSum,3),
+                                                                      round(c_sol.of_MaxMin,3),
                                                                       c_sol.total_cost,
                                                                       c_sol.total_capacity]
 
         # Add new solutions to result_table
         for sol in solution_list:
             selected_nodes = ' - '.join([str(s) for s in sorted(sol.solution_set)])
-            result_table.loc[len(result_table)] = [selected_nodes] + [sol.of_MaxSum,
-                                                                      sol.of_MaxMin,
+            result_table.loc[len(result_table)] = [selected_nodes] + [round(sol.of_MaxSum,3),
+                                                                      round(sol.of_MaxMin,3),
                                                                       sol.total_cost,
                                                                       sol.total_capacity]
 

@@ -101,7 +101,7 @@ def execute_instance(path: str, results: OutputHandler) -> float:
         # fig.show()
 
         constraints = np.array([res.G[:, 0] + inst['K'], inst['B'] - res.G[:, 1]])
-        result_table = np.array(-res.F).T.tolist() + constraints.tolist()
+        result_table = np.round(-res.F,3).T.tolist() + constraints.tolist()
 
         # Print the best solutions found
         logging.info("Best solutions (with binary decision variables):")

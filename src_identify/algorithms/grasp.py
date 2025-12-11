@@ -10,7 +10,7 @@ from utils.logger import load_logger
 logging = load_logger(__name__)
 
 
-def execute(inst: dict, config: dict, objective: int, iteration: int, plot_dict, data_dict) -> Solution:
+def execute(inst: dict, config: dict, preprocess:bool, build_mode: tuple, iteration: int, plot_dict, data_dict) -> Solution:
     '''The function executes a GRASP algorithm with a specified number of iterations and a given
     beta value, selecting the best solution found during the iterations.
 
@@ -37,10 +37,10 @@ def execute(inst: dict, config: dict, objective: int, iteration: int, plot_dict,
     #       ls_strategy, ls_scheme)
 
     # Construction phase (Biased GRASP)
-    if iteration % 4 in {0, 1}:
-        solution_list, algorithm = biased_randomized.construct(inst, config, objective)
-    elif iteration % 4 in {2, 3}:
-        solution_list, algorithm = biased_randomized.deconstruct(inst, config, objective)
+    if build_mode[0] == "C":
+        solution_list, algorithm = biased_randomized.construct(inst, config, build_mode)
+    else:
+        solution_list, algorithm = biased_randomized.deconstruct(inst, config, build_mode)
 
     c_sol_list = [s.clone() for s in solution_list]
     # Local Search phase
@@ -48,14 +48,20 @@ def execute(inst: dict, config: dict, objective: int, iteration: int, plot_dict,
     if len(solution_list) > 1:
         ls_sols = [0, -1]
 
-    # solution_pre_ls = solution_list[0].clone()
-    # plot_dict.append({"solution": solution_pre_ls, "iteration": iteration, "algorithm": algorithm, "ls": False})
-    # data_dict.append({"MaxMin": solution_pre_ls.of_MaxMin, "MaxSum":solution_pre_ls.of_MaxSum, "iteration": iteration, "algorithm": algorithm, "ls": False})
-    for sol in [solution_list[i] for i in ls_sols]:  # Apply LS only to 1st and last solutions
-        if len(sol.solution_set) > 0:  # Ensure a solution is constructed
-            variable_neighborhood_descent.improve(sol, config)
-            # plot_dict.append({"solution": sol, "iteration": iteration, "algorithm": algorithm, "ls": True})
-            # data_dict.append({"MaxMin_pre": solution_pre_ls.of_MaxMin, "MaxSum_pre":solution_pre_ls.of_MaxSum,"MaxMin": sol.of_MaxMin, "MaxSum":sol.of_MaxSum, "iteration": iteration, "algorithm": algorithm})
+    if preprocess:
+        solution_pre_ls = solution_list[0].clone()
+        solution_pre_ls_2 = solution_list[-1].clone()
+
+        plot_dict.append({"solution": solution_pre_ls, "iteration": iteration, "algorithm": build_mode, "ls": False})
+        plot_dict.append({"solution": solution_pre_ls_2, "iteration": iteration, "algorithm": build_mode, "ls": False})
+        data_dict.append({"MaxMin": solution_pre_ls.of_MaxMin, "MaxSum":solution_pre_ls.of_MaxSum, "iteration": iteration, "algorithm": build_mode, "ls": False})
+
+    else:
+        for sol in [solution_list[i] for i in ls_sols]:  # Apply LS only to 1st and last solutions
+            if len(sol.solution_set) > 0:  # Ensure a solution is constructed
+                variable_neighborhood_descent.improve(sol, config)
+                # plot_dict.append({"solution": sol, "iteration": iteration, "algorithm": algorithm, "ls": True})
+                # data_dict.append({"MaxMin_pre": solution_pre_ls.of_MaxMin, "MaxSum_pre":solution_pre_ls.of_MaxSum,"MaxMin": sol.of_MaxMin, "MaxSum":sol.of_MaxSum, "iteration": iteration, "algorithm": algorithm})
 
 
 

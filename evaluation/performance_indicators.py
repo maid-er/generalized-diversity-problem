@@ -21,6 +21,8 @@ def set_coverage(A, B):
     for b in B:
         if any(dominates(a, b) for a in A):
             count += 1
+        else:
+            c=1
     return count / len(B)
 
 

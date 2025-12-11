@@ -21,10 +21,13 @@ def get_coincident_instances(result_dir: str, inst_set: str, inst_subset: str) -
         if alg.endswith('.csv') or alg.endswith('.html'):
             continue
 
-        subset_path = os.path.join(result_dir, alg, inst_set, inst_subset)
-        subset_inst = os.listdir(subset_path)
-        subset_inst = [i for i in subset_inst if i not in ['add_data.csv', 'ex_times.csv']]
-        instances.append(subset_inst)
+        try:
+            subset_path = os.path.join(result_dir, alg, inst_set, inst_subset)
+            subset_inst = os.listdir(subset_path)
+            subset_inst = [i for i in subset_inst if i not in ['add_data.csv', 'ex_times.csv']]
+            instances.append(subset_inst)
+        except:
+            continue
 
     common_instances = list(set.intersection(*map(set, instances)))
     common_instances = [i for i in common_instances
@@ -94,7 +97,7 @@ def plot_pareto_fronts(output_dir: str, inst_set: str, inst_subset: str, instanc
 
     print('Saving figure')
     fig.write_html('output/fig.html')
-    # fig.show()
+    fig.show()
 
 
 def calculate_performance_indicators(result_dir, inst_set, inst_subset, instances: list):
@@ -149,7 +152,7 @@ def calculate_performance_indicators(result_dir, inst_set, inst_subset, instance
                 eps = epsilon_indicator_mul(current_pareto_front, reference_pareto_front)
 
                 # Save indicators
-                indicators = indicators.append(pd.DataFrame({'HV': [hypervolume],
+                indicators = indicators._append(pd.DataFrame({'HV': [hypervolume],
                                                              'SC': [sc],
                                                              'eps': [eps]}))
 
@@ -164,17 +167,20 @@ def calculate_performance_indicators(result_dir, inst_set, inst_subset, instance
             summary = pd.DataFrame({'alg_config': [alg]}) \
                 .join(pd.DataFrame(evaluation_table.mean()).transpose())
             summary.drop(columns=['ex_number'], inplace=True)
-            general_indicators = general_indicators.append(
+            general_indicators = general_indicators._append(
                 pd.DataFrame({'inst': [inst]}).join(summary))
 
+    # convert all columns that should be numeric
+    for col in ["time", "HV", "SC", "eps", "all_sols", "nd_sols"]:
+        general_indicators[col] = pd.to_numeric(general_indicators[col], errors="coerce")
     # Save table with indicator values for each instance-algorithm
     general_indicators['eps'].replace([np.inf, -np.inf], np.nan, inplace=True)
     general_indicators.to_csv(os.path.join(result_dir, 'indicators.csv'))
 
     # Save table with mean values of the indicators for each algorithm
-    mean_indicators = general_indicators.groupby(['alg_config']).mean().round(2)
+    mean_indicators = general_indicators.groupby(['alg_config']).mean(numeric_only=True).round(2)
     mean_indicators.to_csv(os.path.join(result_dir, 'mean_indicators.csv'))
 
     # Save table with median values of the indicators for each algorithm
-    mean_indicators = general_indicators.groupby(['alg_config']).median().round(2)
+    mean_indicators = general_indicators.groupby(['alg_config']).median(numeric_only=True).round(2)
     mean_indicators.to_csv(os.path.join(result_dir, 'median_indicators.csv'))

@@ -15,7 +15,7 @@ OBJECTIVE_FUNCTIONS = {0: 'MaxSum',
 w1, w2 = 0.7, 0.3
 
 
-def construct(inst: dict, config: dict, objective: int) -> Solution:
+def construct(inst: dict, config: dict, build_mode:tuple) -> Solution:
     '''The function constructs a solution for a given instance using a Biased Greedy Randomized
     Adaptive Search (B-GRASP) procedure with specified parameters.
 
@@ -64,21 +64,17 @@ def construct(inst: dict, config: dict, objective: int) -> Solution:
         cl = [c for c in cl if sol.satisfies_cost([c[2]])]
         if len(cl) == 0:  # If the cost won't be met with any new element
             break
-        if objective == 0:
-            if random_value < 0.5:
-                cl.sort(key=lambda row: -row[3])
-                algorithm = "Cost"
-            else:
-                cl.sort(key=lambda row: -row[objective])
-                algorithm = "MaxSum"
+
+        if build_mode[1] == "focus":
+            focus_objective = build_mode[2] if build_mode[2] < 2 else 3
+            cl.sort(key=lambda row: -row[focus_objective])
 
         else:
-            cl.sort(key=lambda row: -row[objective])
-
-        # random_index = random.sample([0,1,3],2)
-        # max_random_index_0 = max(1, max([c[random_index[0]] for c in cl]))
-        # max_random_index_1 = max(1, max([c[random_index[1]] for c in cl]))
-        # cl.sort(key=lambda row: -random_value*row[random_index[0]]/max_random_index_0 - (1-random_value)*row[random_index[1]]/max_random_index_1)
+            focus_objectives = [[0,1],[0,3], [1,3]]
+            selected_focus = focus_objectives[build_mode[2]]
+            max_random_index_0 = max(1, max([c[selected_focus[0]] for c in cl]))
+            max_random_index_1 = max(1, max([c[selected_focus[1]] for c in cl]))
+            cl.sort(key=lambda row: -random_value*row[selected_focus[0]]/max_random_index_0 - (1-random_value)*row[selected_focus[1]]/max_random_index_1)
         #print('Sorted biased candidate list with %s objective.', OBJECTIVE_FUNCTIONS.get(objective))
 
         # Biased Randomization to select new node to add to solution
@@ -110,7 +106,7 @@ def construct(inst: dict, config: dict, objective: int) -> Solution:
     return solution_list, algorithm
 
 
-def deconstruct(inst: dict, config: dict, objective: int) -> Solution:
+def deconstruct(inst: dict, config: dict, build_mode: tuple) -> Solution:
     '''The function constructs a solution for a given instance using a Biased Greedy Randomized
     Adaptive Search (B-GRASP) procedure with specified parameters.
 
@@ -146,6 +142,7 @@ def deconstruct(inst: dict, config: dict, objective: int) -> Solution:
     random_value = random.random()
     algorithm = "MaxMin"
     while sol.satisfies_capacity() and len(cl) > 0:
+        # sol.comprobate()
         # If the approach is to alternate objectives IN each construction,
         # switch objective in each iteration, else maintain the (input) objective
         # set by the strategy to alternate objectives BETWEEN constructions.
@@ -153,22 +150,22 @@ def deconstruct(inst: dict, config: dict, objective: int) -> Solution:
             objective = len(cl) % 2  # 0: MaxSum, 1: MaxMin
 
         # Filter only nodes that provide a feasible solution
-        cl = [c for c in cl if sol.satisfies_capacity(v=[c[2]])]
-        if len(cl) == 0:  # If the capacity won't be met with any new element
+        cl = [c for c in cl if sol.satisfies_capacity([c[2]])]
+        if len(cl) == 0:  # If the cost won't be met with any new element
             break
-        if objective == 0:
-            if random_value < 0.5:
-                cl.sort(key=lambda row: row[3])
-                algorithm = "Cost"
-            else:
-                cl.sort(key=lambda row: row[objective])
-                algorithm = "MaxSum"
+
+        if build_mode[1] == "focus":
+            focus_objective = build_mode[2] if build_mode[2] < 2 else 3
+            cl.sort(key=lambda row: row[focus_objective])
+
         else:
-            cl.sort(key=lambda row: row[objective] )
-        # random_index = random.sample([0,1,3],2)
-        # max_random_index_0 = max(1,max([c[random_index[0]] for c in cl]))
-        # max_random_index_1 = max(1,max([c[random_index[1]] for c in cl]))
-        # cl.sort(key=lambda row: random_value*row[random_index[0]]/max_random_index_0 + (1-random_value)*row[random_index[1]]/max_random_index_1)
+            focus_objectives = [[0, 1], [0, 3], [1, 3]]
+            selected_focus = focus_objectives[build_mode[2]]
+            max_random_index_0 = max(1, max([c[selected_focus[0]] for c in cl]))
+            max_random_index_1 = max(1, max([c[selected_focus[1]] for c in cl]))
+            cl.sort(
+                key=lambda row: random_value * row[selected_focus[0]] / max_random_index_0 + (1 - random_value) * row[
+                    selected_focus[1]] / max_random_index_1)
 
         #print('Sorted biased candidate list with %s objective.', OBJECTIVE_FUNCTIONS.get(objective))
 

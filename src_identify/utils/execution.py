@@ -1,0 +1,263 @@
+'''Directory and instance execution auxiliar functions'''
+import datetime
+import itertools
+import os
+import pandas as pd
+
+from algorithms import grasp
+from structure import instance
+
+from utils.results import OutputHandler
+from utils.logger import load_logger
+import matplotlib.pyplot  as plt
+
+from structure import dominance
+
+logging = load_logger(__name__)
+
+
+def execute_instance(path: str, config: dict, results: OutputHandler) -> float:
+    '''
+    Reads an instance, iterates to find solutions using GRASP algorithm, evaluates the solutions,
+    identifies non-dominated solutions, computes execution time, and saves results.
+
+    Args:
+      path (str): represents the path to the instance that needs to be solved. This path is used
+    to read the instance data and save the results later on with the same name.
+      config (dict): contains the configuration settings for the algorithm.
+      results (OutputHandler): contains methods for handling and displaying the output of the
+    algorithm, such as generating plots and saving results to files with the ID number of the
+    execution number of each instance.
+
+    Returns:
+      (float): returns the total execution time in seconds.
+    '''
+    # Initialize list and table to save solutions
+    all_c_solutions = []  # Solutions from construction stage
+    all_solutions = []  # Final solutions after the LS stage
+    c_result_table = pd.DataFrame(columns=['Solution', 'MaxSum', 'MaxMin', 'Cost', 'Capacity'])
+    result_table = pd.DataFrame(columns=['Solution', 'MaxSum', 'MaxMin', 'Cost', 'Capacity'])
+
+    print('Solving instance %s:', path)
+    # Read instance
+    inst = instance.read_instance(path)
+
+    max_time = config.get('execution_limits').get('max_time')
+    start = datetime.datetime.now()
+    # Construct a solution for the IT defined in config
+    plot_dict = []
+    data_dict = []
+    policies = ["C", "D"]
+    cost_mode = ["focus", "weight"]
+    cost_only = [0,1,2]
+
+    combinations = list(itertools.product(policies, cost_mode, cost_only))
+
+    execute_combinations(config, True, combinations, max_time, start,
+                             inst, plot_dict, data_dict, all_c_solutions, all_solutions, c_result_table, result_table)
+
+
+    # Number of combinations
+    n = len(combinations)
+
+    # Pick a colormap with enough distinct colors
+    cmap = plt.get_cmap("tab20")  # 20 visually distinct colors
+
+    # Create the color map dictionary automatically
+    color_map = {combo: cmap(i / n) for i, combo in enumerate(combinations)}
+
+    # plot_solutions(plot_dict, color_map)
+    stats, pf_idx, total_pf = compute_global_pareto_stats(plot_dict)
+
+    print(f"Global PF size = {total_pf}")
+
+    for combo, s in stats.items():
+        print(f"{combo}: {s['pareto']} / {total_pf}  → {s['percentage']:.1f}%")
+
+    post_combinations = []
+    for combo, s in stats.items():
+        if s['percentage'] > 2:
+            post_combinations.append(combo)
+
+    start = datetime.datetime.now()
+
+    execute_combinations(config, False, post_combinations, max_time, start,
+                         inst, plot_dict, data_dict, all_c_solutions, all_solutions, c_result_table, result_table)
+
+    # import json
+    #
+    #
+    # with open('data2.txt', 'w') as f:
+    #     json.dump(data_dict, f)
+
+    # data = []
+    # with open("data.txt", "r") as f:
+    #     for line in f:
+    #         data.append(json.loads(line))
+    #
+    # model_prediction(data_dict)
+
+    # Find non-dominated solutions among all constructions
+
+    is_non_dominated = dominance.get_nondominated_solutions(all_solutions)
+    dom_result_table = result_table[is_non_dominated].reset_index(drop=True)
+
+    # Compute execution time
+    elapsed = datetime.datetime.now() - start
+    secs = round(elapsed.total_seconds(), 2)
+    print('Execution time: %s', secs)
+    add_data = {
+        'time': [secs],
+        'all_sols': [len(all_solutions)],
+        'nd_sols': [len(dom_result_table)]
+    }
+
+    # Build and plot Pareto Front
+    fig = results.pareto_front(dom_result_table, path)
+    # Save table and plot with results
+    algorithm_params = (f'IT{config.get("iterations")}'
+                        f'_b{config.get("parameters").get("beta")}'
+                        f'_{config.get("scheme")[:3]}'
+                        # f'_nb{len(config.get("neighborhoods"))}'
+                        ).replace('.', '')
+    results.save(dom_result_table, result_table, c_result_table, add_data, fig, algorithm_params, path)
+
+
+def execute_combinations(config, preprocess, combinations, max_time, start,
+                         inst, plot_dict, data_dict, all_c_solutions, all_solutions, c_result_table, result_table):
+    for i in range(config.get('iterations')):
+        combination = combinations[i%len(combinations)]
+        print(combination)
+
+        if not preprocess:
+            # If time is exceeded stop execution
+            if datetime.timedelta(seconds=max_time) < datetime.datetime.now() - start:
+                print('Maximum allowed execution time is exceeded. Total IT: %s', i)
+                break
+
+        # Run B-GRASP-VND
+        # print(f'Finding solution #{i+1}')
+        c_sol_list, solution_list = grasp.execute(inst, config, preprocess, combination, i, plot_dict, data_dict)
+        # Save solution set found in this IT
+        all_c_solutions += c_sol_list
+        all_solutions += solution_list
+
+        # Add new solutions to result_table
+        # for sol in solution_list:
+        for c_sol in c_sol_list:
+            selected_nodes = ' - '.join([str(s) for s in sorted(c_sol.solution_set)])
+            c_result_table.loc[len(c_result_table)] = [selected_nodes] + [ round(c_sol.of_MaxSum,3),
+                                                                      round(c_sol.of_MaxMin,3),
+                                                                      c_sol.total_cost,
+                                                                      c_sol.total_capacity]
+
+        # Add new solutions to result_table
+        for sol in solution_list:
+            selected_nodes = ' - '.join([str(s) for s in sorted(sol.solution_set)])
+            result_table.loc[len(result_table)] = [selected_nodes] + [round(sol.of_MaxSum,3),
+                                                                      round(sol.of_MaxMin,3),
+                                                                      sol.total_cost,
+                                                                      sol.total_capacity]
+
+def execute_directory(directory: str, config: dict):
+    '''
+    Scans a directory for text files, executes instances with specified configurations, and saves
+    the results in a CSV file.
+
+    Args:
+      directory (str): represents the path to the directory where the files (instances) are located.
+      config (dict): contains the configuration settings for the algorithm.
+    '''
+    with os.scandir(directory) as files:
+        ficheros = [file.name for file in files if file.is_file() and file.name.endswith(".txt")]
+
+    results = OutputHandler()
+
+    for f in ficheros:
+        path = os.path.join(directory, f)
+        execute_instance(path, config, results)
+
+
+
+def plot_solutions(plot_dict, color_map):
+
+    used_labels = set()
+    plt.figure()
+    for sol in plot_dict:
+        solution = sol["solution"]
+        key = sol["algorithm"]
+        color = color_map[key]
+
+        label = f"{key[0]} | {key[1]} | {key[2]}"
+        if key not in used_labels:
+            plt.scatter(solution.of_MaxMin, solution.of_MaxSum, color=color, label=label)
+            used_labels.add(key)
+        else:
+            plt.scatter(solution.of_MaxMin, solution.of_MaxSum, color=color)
+        plt.scatter(solution.of_MaxMin, solution.of_MaxSum, color=color)
+
+    plt.xlabel('x')
+    plt.ylabel('y')
+    plt.legend(title="Combinations", loc="upper right")  # ⭐ Legend in top right
+    plt.grid(True)
+    plt.show()
+
+
+def pareto_front(points):
+    """Return indices of points that belong to the Pareto front (MaxMax)."""
+    front = []
+    for i, (x_i, y_i) in enumerate(points):
+        dominated = False
+        for j, (x_j, y_j) in enumerate(points):
+            if (x_j >= x_i and y_j >= y_i) and (x_j > x_i or y_j > y_i):
+                dominated = True
+                break
+        if not dominated:
+            front.append(i)
+    return front
+
+
+def compute_global_pareto_stats(plot_dict):
+
+    def pareto_front(points):
+        front = []
+        for i, (x_i, y_i) in enumerate(points):
+            dominated = False
+            for j, (x_j, y_j) in enumerate(points):
+                if (x_j >= x_i and y_j >= y_i) and (x_j > x_i or y_j > y_i):
+                    dominated = True
+                    break
+            if not dominated:
+                front.append(i)
+        return front
+
+    # Gather all points
+    all_points = []
+    all_combos = []
+
+    for sol in plot_dict:
+        combo = sol["algorithm"]
+        solution = sol["solution"]
+        all_points.append((solution.of_MaxMin, solution.of_MaxSum))
+        all_combos.append(combo)
+
+    # Compute global Pareto front
+    global_pf_idx = set(pareto_front(all_points))
+    total_pf = len(global_pf_idx)
+
+    # Prepare stats
+    combinations = set(all_combos)
+    stats = {combo: {"pareto": 0, "percentage": 0.0} for combo in combinations}
+
+    # Count Pareto front points per combination
+    for idx in global_pf_idx:
+        combo = all_combos[idx]
+        stats[combo]["pareto"] += 1
+
+    # Compute percentages relative to global PF
+    for combo, s in stats.items():
+        if total_pf > 0:
+            s["percentage"] = 100 * s["pareto"] / total_pf
+
+    return stats, global_pf_idx, total_pf
+

@@ -16,8 +16,8 @@ def calculate_reference_front(result_dir, set, subset, inst):
         executions = os.listdir(config_path)
         for exec in executions:
             solutions = pd.read_csv(os.path.join(config_path, exec))
-            if exec != 'add_data.csv':
-                all_solution_table = all_solution_table.append(solutions)
+            if 'result' in exec:
+                all_solution_table = all_solution_table._append(solutions)
     # Find non-dominated solutions among all constructions
     all_solution_table = all_solution_table.reset_index(drop=True)
     if all_solution_table.Solution.isnull().all():
