@@ -21,8 +21,6 @@ def set_coverage(A, B):
     for b in B:
         if any(dominates(a, b) for a in A):
             count += 1
-        else:
-            c=1
     return count / len(B)
 
 
@@ -32,9 +30,9 @@ def epsilon_indicator_mul(A, B):
     solution from reference front B is dominated by A.
     '''
     eps = float('-inf')
-    for a in A:
+    for b in B:
         min_eps = float('inf')
-        for b in B:
+        for a in A:
             max_ratio = max(b[i] / a[i] for i in range(len(a)))
             min_eps = min(min_eps, max_ratio)
         eps = max(eps, min_eps)

@@ -1,5 +1,6 @@
 '''GRASP execution function (construction and LS calls)'''
 import copy
+import random
 
 from constructives import biased_randomized
 from local_search import variable_neighborhood_descent
@@ -10,7 +11,7 @@ from utils.logger import load_logger
 logging = load_logger(__name__)
 
 
-def execute(inst: dict, config: dict, preprocess:bool, build_mode: tuple, iteration: int, plot_dict, data_dict) -> Solution:
+def execute(inst: dict, config: dict, preprocess:bool, combination: tuple, combinations_dict_alpha:dict, iteration: int, results_dict) -> Solution:
     '''The function executes a GRASP algorithm with a specified number of iterations and a given
     beta value, selecting the best solution found during the iterations.
 
@@ -27,20 +28,21 @@ def execute(inst: dict, config: dict, preprocess:bool, build_mode: tuple, iterat
         (Solution): the solution found.
     '''
     # Get config parameters
-    parameters = config.get('parameters')
-    ls_strategy = config.get('strategy')
-    ls_scheme = config.get('scheme')
 
     # print('Executing GRASP algorithm with: ')
     # print('\tBiased construction with parameters %s', parameters)
     # print('\t%s Local Search strategy following the %s Improve scheme',
     #       ls_strategy, ls_scheme)
 
+    alpha_interval = combinations_dict_alpha[combination]
+
+    alpha = random.uniform(alpha_interval[0], alpha_interval[1])
+
     # Construction phase (Biased GRASP)
-    if build_mode[0] == "C":
-        solution_list, algorithm = biased_randomized.construct(inst, config, build_mode)
+    if combination[0] == "C":
+        solution_list, combination = biased_randomized.construct(inst, config, combination, alpha)
     else:
-        solution_list, algorithm = biased_randomized.deconstruct(inst, config, build_mode)
+        solution_list, combination = biased_randomized.deconstruct(inst, config, combination, alpha)
 
     c_sol_list = [s.clone() for s in solution_list]
     # Local Search phase
@@ -49,25 +51,16 @@ def execute(inst: dict, config: dict, preprocess:bool, build_mode: tuple, iterat
         ls_sols = [0, -1]
 
     if preprocess:
-        solution_pre_ls = solution_list[0].clone()
-        solution_pre_ls_2 = solution_list[-1].clone()
+        for solution_pre in solution_list:
+            solution_pre_clone = solution_pre.clone()
 
-        plot_dict.append({"solution": solution_pre_ls, "iteration": iteration, "algorithm": build_mode, "ls": False})
-        plot_dict.append({"solution": solution_pre_ls_2, "iteration": iteration, "algorithm": build_mode, "ls": False})
-        data_dict.append({"MaxMin": solution_pre_ls.of_MaxMin, "MaxSum":solution_pre_ls.of_MaxSum, "iteration": iteration, "algorithm": build_mode, "ls": False})
+            results_dict.append({"solution": solution_pre_clone, "iteration": iteration, "combination": combination, "alpha": alpha, "ls": False})
 
     else:
         for sol in [solution_list[i] for i in ls_sols]:  # Apply LS only to 1st and last solutions
             if len(sol.solution_set) > 0:  # Ensure a solution is constructed
                 variable_neighborhood_descent.improve(sol, config)
-                # plot_dict.append({"solution": sol, "iteration": iteration, "algorithm": algorithm, "ls": True})
-                # data_dict.append({"MaxMin_pre": solution_pre_ls.of_MaxMin, "MaxSum_pre":solution_pre_ls.of_MaxSum,"MaxMin": sol.of_MaxMin, "MaxSum":sol.of_MaxSum, "iteration": iteration, "algorithm": algorithm})
 
-
-
-
-    # c_sol_list = [c_sol_list[i] for i in [0, -1]]
-    # solution_list = [solution_list[i] for i in [0, -1]]
 
     return c_sol_list, solution_list
 

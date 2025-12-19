@@ -3,8 +3,8 @@ import utils
 
 
 '''Variables defined by the user'''
-SET = 'GDP'
-SUBSET = 'MDG-b'
+SET = 'GDP_test'
+SUBSET = 'GKDTESTARU150'
 PLOT_PARETO_FRONTS = True
 
 
@@ -12,7 +12,7 @@ PLOT_PARETO_FRONTS = True
 if __name__ == '__main__':
 
     # Directory with results
-    result_dir = 'outputtest'
+    result_dir = 'outputestaru'
 
     # Plot Pareto Fronts of all the analyzed algorithms and instances
     common_inst = utils.get_coincident_instances(result_dir, SET, SUBSET)

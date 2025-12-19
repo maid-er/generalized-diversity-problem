@@ -12,6 +12,8 @@ from utils.logger import load_logger
 import matplotlib.pyplot  as plt
 
 from structure import dominance
+from collections import defaultdict
+import statistics
 
 logging = load_logger(__name__)
 
@@ -45,57 +47,40 @@ def execute_instance(path: str, config: dict, results: OutputHandler) -> float:
     max_time = config.get('execution_limits').get('max_time')
     start = datetime.datetime.now()
     # Construct a solution for the IT defined in config
-    plot_dict = []
-    data_dict = []
+    results_dict = []
     policies = ["C", "D"]
-    cost_mode = ["focus", "weight"]
-    cost_only = [0,1,2]
+    cost_focus = [0,1,2,3]
+    cost_weight = [0,1,2,3,4,5]
 
-    combinations = list(itertools.product(policies, cost_mode, cost_only))
+    combinations_focus = list(itertools.product(policies, ["focus"], cost_focus))
+    combinations_weight = list(itertools.product(policies, ["weight"], cost_weight))
+    combinations = combinations_focus + combinations_weight
 
-    execute_combinations(config, True, combinations, max_time, start,
-                             inst, plot_dict, data_dict, all_c_solutions, all_solutions, c_result_table, result_table)
+    combinations_dict_alpha = {comb: [0, 1] for comb in combinations} # initial value for alpha interval
 
+    execute_combinations(config, True, combinations, combinations_dict_alpha, max_time, start,
+                             inst, results_dict, all_c_solutions, all_solutions, c_result_table, result_table)
 
-    # Number of combinations
-    n = len(combinations)
+    post_combinations, pf_idx = scan_results(combinations, results_dict, start)
 
-    # Pick a colormap with enough distinct colors
-    cmap = plt.get_cmap("tab20")  # 20 visually distinct colors
+    pareto_solutions = [results_dict[i] for i in pf_idx if results_dict[i]["combination"] in post_combinations]
 
-    # Create the color map dictionary automatically
-    color_map = {combo: cmap(i / n) for i, combo in enumerate(combinations)}
+    #Update the alpha interval for the combinations
 
-    # plot_solutions(plot_dict, color_map)
-    stats, pf_idx, total_pf = compute_global_pareto_stats(plot_dict)
+    results_alpha = analyze_alpha(pareto_solutions)
+    print(results_alpha)
 
-    print(f"Global PF size = {total_pf}")
+    for key, value in results_alpha.items():
 
-    for combo, s in stats.items():
-        print(f"{combo}: {s['pareto']} / {total_pf}  → {s['percentage']:.1f}%")
+        combinations_dict_alpha[key] = [ max(0, value["mean"] - 1.5*value["mean"]), min(1, value["mean"] + 1.5*value["mean"] )]
 
-    post_combinations = []
-    for combo, s in stats.items():
-        if s['percentage'] > 2:
-            post_combinations.append(combo)
+    print(combinations_dict_alpha)
+
 
     start = datetime.datetime.now()
 
-    execute_combinations(config, False, post_combinations, max_time, start,
-                         inst, plot_dict, data_dict, all_c_solutions, all_solutions, c_result_table, result_table)
-
-    # import json
-    #
-    #
-    # with open('data2.txt', 'w') as f:
-    #     json.dump(data_dict, f)
-
-    # data = []
-    # with open("data.txt", "r") as f:
-    #     for line in f:
-    #         data.append(json.loads(line))
-    #
-    # model_prediction(data_dict)
+    execute_combinations(config, False, post_combinations, combinations_dict_alpha, max_time, start,
+                         inst, results_dict, all_c_solutions, all_solutions, c_result_table, result_table)
 
     # Find non-dominated solutions among all constructions
 
@@ -123,11 +108,13 @@ def execute_instance(path: str, config: dict, results: OutputHandler) -> float:
     results.save(dom_result_table, result_table, c_result_table, add_data, fig, algorithm_params, path)
 
 
-def execute_combinations(config, preprocess, combinations, max_time, start,
-                         inst, plot_dict, data_dict, all_c_solutions, all_solutions, c_result_table, result_table):
-    for i in range(config.get('iterations')):
+def execute_combinations(config, preprocess, combinations,combinations_dict_alpha, max_time, start,
+                         inst, results_dict, all_c_solutions, all_solutions, c_result_table, result_table):
+
+    max_iterations = config.get('iterations') if not preprocess else config.get('pre_iterations') * len(combinations)
+    for i in range(max_iterations):
         combination = combinations[i%len(combinations)]
-        print(combination)
+        # print(combination)
 
         if not preprocess:
             # If time is exceeded stop execution
@@ -137,7 +124,7 @@ def execute_combinations(config, preprocess, combinations, max_time, start,
 
         # Run B-GRASP-VND
         # print(f'Finding solution #{i+1}')
-        c_sol_list, solution_list = grasp.execute(inst, config, preprocess, combination, i, plot_dict, data_dict)
+        c_sol_list, solution_list = grasp.execute(inst, config, preprocess, combination, combinations_dict_alpha, i, results_dict)
         # Save solution set found in this IT
         all_c_solutions += c_sol_list
         all_solutions += solution_list
@@ -179,16 +166,20 @@ def execute_directory(directory: str, config: dict):
 
 
 
-def plot_solutions(plot_dict, color_map):
+def plot_solutions(results_dict, color_map):
 
     used_labels = set()
     plt.figure()
-    for sol in plot_dict:
+    for sol in results_dict:
         solution = sol["solution"]
-        key = sol["algorithm"]
+        key = sol["combination"]
         color = color_map[key]
-
-        label = f"{key[0]} | {key[1]} | {key[2]}"
+        label_i_comp = 0
+        if key[1] != "focus":
+            label_i_comp = 1
+        # label = f"{key[0]} | {key[1]} | {key[2]}"
+        label_i = str((4* label_i_comp + key[2] + 1))
+        label = f"$\psi^{key[0]}_{label_i}$"
         if key not in used_labels:
             plt.scatter(solution.of_MaxMin, solution.of_MaxSum, color=color, label=label)
             used_labels.add(key)
@@ -196,8 +187,8 @@ def plot_solutions(plot_dict, color_map):
             plt.scatter(solution.of_MaxMin, solution.of_MaxSum, color=color)
         plt.scatter(solution.of_MaxMin, solution.of_MaxSum, color=color)
 
-    plt.xlabel('x')
-    plt.ylabel('y')
+    plt.xlabel('MaxMin')
+    plt.ylabel('MaxSum')
     plt.legend(title="Combinations", loc="upper right")  # ⭐ Legend in top right
     plt.grid(True)
     plt.show()
@@ -217,7 +208,7 @@ def pareto_front(points):
     return front
 
 
-def compute_global_pareto_stats(plot_dict):
+def compute_global_pareto_stats(results_dict):
 
     def pareto_front(points):
         front = []
@@ -235,8 +226,8 @@ def compute_global_pareto_stats(plot_dict):
     all_points = []
     all_combos = []
 
-    for sol in plot_dict:
-        combo = sol["algorithm"]
+    for sol in results_dict:
+        combo = sol["combination"]
         solution = sol["solution"]
         all_points.append((solution.of_MaxMin, solution.of_MaxSum))
         all_combos.append(combo)
@@ -261,3 +252,50 @@ def compute_global_pareto_stats(plot_dict):
 
     return stats, global_pf_idx, total_pf
 
+def analyze_alpha(pareto_combinations):
+    grouped = defaultdict(list)
+
+    for d in pareto_combinations:
+        grouped[d["combination"]].append(d["alpha"])
+
+    results = {
+        combination: {
+            "mean": statistics.mean(values),
+            "std": statistics.stdev(values) if len(values) > 1 else 0.0
+        }
+        for combination, values in grouped.items()
+    }
+    return results
+
+def scan_results(combinations, results_dict, start):
+    # Number of combinations
+    n = len(combinations)
+
+    # Pick a colormap with enough distinct colors
+    cmap = plt.get_cmap("tab20")  # 20 visually distinct colors
+
+    # Create the color map dictionary automatically
+    color_map = {combo: cmap(i / n) for i, combo in enumerate(combinations)}
+
+    # plot_solutions(results_dict, color_map)
+
+    stats, pf_idx, total_pf = compute_global_pareto_stats(results_dict)
+
+    print(f"Global PF size = {total_pf}")
+
+    for combo, s in stats.items():
+        print(f"{combo}: {s['pareto']} / {total_pf}  → {s['percentage']:.1f}%")
+
+    post_combinations = []
+    for combo, s in stats.items():
+        if s['percentage'] > 5:
+            post_combinations.append(combo)
+
+    elapsed = datetime.datetime.now() - start
+    secs = round(elapsed.total_seconds(), 2)
+    print('Execution time preprocess: %s', secs)
+
+    # results_dict_pareto = [plot for plot in results_dict if plot["combination"] in post_combinations]
+    # plot_solutions(results_dict_pareto, color_map)
+
+    return post_combinations, pf_idx

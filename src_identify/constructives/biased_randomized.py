@@ -9,13 +9,8 @@ from utils.logger import load_logger
 
 logging = load_logger(__name__)
 
-OBJECTIVE_FUNCTIONS = {0: 'MaxSum',
-                       1: 'MaxMin'}
 
-w1, w2 = 0.7, 0.3
-
-
-def construct(inst: dict, config: dict, build_mode:tuple) -> Solution:
+def construct(inst: dict, config: dict, combination: tuple, alpha: float) -> Solution:
     '''The function constructs a solution for a given instance using a Biased Greedy Randomized
     Adaptive Search (B-GRASP) procedure with specified parameters.
 
@@ -37,7 +32,6 @@ def construct(inst: dict, config: dict, build_mode:tuple) -> Solution:
         (Solution): contains the solution information.
     '''
     # Get config parammeters
-    mo_construction_approach = config.get('mo_approach_C')
     distribution = config.get('parameters').get('distribution')
 
     solution_list = []
@@ -49,33 +43,35 @@ def construct(inst: dict, config: dict, build_mode:tuple) -> Solution:
     # sol.comprobate()
     cl = create_candidate_list(sol, u)
 
-    random_value = random.random()
-    algorithm = "MaxMin"
 
     while sol.satisfies_cost() and len(cl) > 0:
         # sol.comprobate()
-        # If the approach is to alternate objectives IN each construction,
-        # switch objective in each iteration, else maintain the (input) objective
-        # set by the strategy to alternate objectives BETWEEN constructions.
-        if mo_construction_approach == 'AltInS':
-            objective = len(cl) % 2  # 0: MaxSum, 1: MaxMin
 
         # Filter only nodes that provide a feasible solution
         cl = [c for c in cl if sol.satisfies_cost([c[2]])]
         if len(cl) == 0:  # If the cost won't be met with any new element
             break
 
-        if build_mode[1] == "focus":
-            focus_objective = build_mode[2] if build_mode[2] < 2 else 3
+        if combination[1] == "focus":
+            focus_objective = combination[2] if combination[2] < 2 else combination[2] + 1
             cl.sort(key=lambda row: -row[focus_objective])
 
         else:
-            focus_objectives = [[0,1],[0,3], [1,3]]
-            selected_focus = focus_objectives[build_mode[2]]
-            max_random_index_0 = max(1, max([c[selected_focus[0]] for c in cl]))
-            max_random_index_1 = max(1, max([c[selected_focus[1]] for c in cl]))
-            cl.sort(key=lambda row: -random_value*row[selected_focus[0]]/max_random_index_0 - (1-random_value)*row[selected_focus[1]]/max_random_index_1)
-        #print('Sorted biased candidate list with %s objective.', OBJECTIVE_FUNCTIONS.get(objective))
+            focus_objectives = [[0, 1],[0, 3], [0, 4], [1, 3], [1, 4], [3, 4]]
+            selected_focus = focus_objectives[combination[2]]
+            max_random_index_0 = max([c[selected_focus[0]] for c in cl])
+            max_random_index_1 = max([c[selected_focus[1]] for c in cl])
+            min_random_index_0 = min([c[selected_focus[0]] for c in cl])
+            min_random_index_1 = min([c[selected_focus[1]] for c in cl])
+
+            # cl.sort(
+            #     key=lambda row: random_value * row[selected_focus[0]] / max_random_index_0 + (1 - random_value) * row[
+            #         selected_focus[1]] / max_random_index_1)
+
+            cl.sort(
+                key=lambda row: - alpha * (row[selected_focus[0]] - min_random_index_0) / max( 1, max_random_index_0 - min_random_index_0)
+                                - (1 - alpha) * (row[selected_focus[1]] - min_random_index_1) / max(1,max_random_index_1 - min_random_index_1))
+
 
         # Biased Randomization to select new node to add to solution
         if distribution == 'Geometric':
@@ -93,7 +89,7 @@ def construct(inst: dict, config: dict, build_mode:tuple) -> Solution:
         update_candidate_list(sol, cl, added=cSel[2])
 
         # If solution is feasible, save it in the solution list
-        if sol.satisfies_capacity() and sol.satisfies_cost():
+        if sol.satisfies_capacity():
             solution_list.append(sol.clone())
 
     # Check if any feasible solution is constructed
@@ -103,10 +99,10 @@ def construct(inst: dict, config: dict, build_mode:tuple) -> Solution:
         sol.of_MaxMin = 0
         solution_list.append(sol)
 
-    return solution_list, algorithm
+    return solution_list, combination
 
 
-def deconstruct(inst: dict, config: dict, build_mode: tuple) -> Solution:
+def deconstruct(inst: dict, config: dict, combination: tuple, alpha: float) -> Solution:
     '''The function constructs a solution for a given instance using a Biased Greedy Randomized
     Adaptive Search (B-GRASP) procedure with specified parameters.
 
@@ -128,7 +124,6 @@ def deconstruct(inst: dict, config: dict, build_mode: tuple) -> Solution:
         (Solution): contains the solution information.
     '''
     # Get config parammeters
-    mo_construction_approach = config.get('mo_approach_C')
     distribution = config.get('parameters').get('distribution')
 
     solution_list = []
@@ -139,35 +134,31 @@ def deconstruct(inst: dict, config: dict, build_mode: tuple) -> Solution:
     for u in range(n):
         sol.add_to_solution(u)
     cl = create_candidate_list(sol)
-    random_value = random.random()
-    algorithm = "MaxMin"
     while sol.satisfies_capacity() and len(cl) > 0:
         # sol.comprobate()
-        # If the approach is to alternate objectives IN each construction,
-        # switch objective in each iteration, else maintain the (input) objective
-        # set by the strategy to alternate objectives BETWEEN constructions.
-        if mo_construction_approach == 'AltInS':
-            objective = len(cl) % 2  # 0: MaxSum, 1: MaxMin
 
         # Filter only nodes that provide a feasible solution
         cl = [c for c in cl if sol.satisfies_capacity([c[2]])]
         if len(cl) == 0:  # If the cost won't be met with any new element
             break
 
-        if build_mode[1] == "focus":
-            focus_objective = build_mode[2] if build_mode[2] < 2 else 3
+        if combination[1] == "focus":
+            focus_objective = combination[2] if combination[2] < 2 else combination[2] + 1
             cl.sort(key=lambda row: row[focus_objective])
 
         else:
-            focus_objectives = [[0, 1], [0, 3], [1, 3]]
-            selected_focus = focus_objectives[build_mode[2]]
-            max_random_index_0 = max(1, max([c[selected_focus[0]] for c in cl]))
-            max_random_index_1 = max(1, max([c[selected_focus[1]] for c in cl]))
-            cl.sort(
-                key=lambda row: random_value * row[selected_focus[0]] / max_random_index_0 + (1 - random_value) * row[
-                    selected_focus[1]] / max_random_index_1)
+            focus_objectives = [[0, 1],[0, 3], [0, 4], [1, 3], [1, 4], [3, 4]]
+            selected_focus = focus_objectives[combination[2]]
 
-        #print('Sorted biased candidate list with %s objective.', OBJECTIVE_FUNCTIONS.get(objective))
+            max_random_index_0 = max([c[selected_focus[0]] for c in cl])
+            max_random_index_1 = max([c[selected_focus[1]] for c in cl])
+            min_random_index_0 = min([c[selected_focus[0]] for c in cl])
+            min_random_index_1 = min([c[selected_focus[1]] for c in cl])
+
+            cl.sort(
+                key=lambda row:  alpha * (row[selected_focus[0]] - min_random_index_0) / max(1, max_random_index_0 - min_random_index_0)
+                                + (1 - alpha) * (row[selected_focus[1]] - min_random_index_1) / max(1, max_random_index_1 - min_random_index_1))
+
 
         # Biased Randomization to select new node to add to solution
         if distribution == 'Geometric':
@@ -180,13 +171,14 @@ def deconstruct(inst: dict, config: dict, build_mode: tuple) -> Solution:
 
         # Add selected node to solution
         cSel = cl[selIdx]
-        sol.remove_from_solution(cSel[2], cSel[1], cSel[0])
+        sol.remove_from_solution_fast(cSel[2], cSel[1], cSel[0])
         cl.remove(cSel)
         update_candidate_list(sol, cl, removed=cSel[2])
 
         # If solution is feasible, save it in the solution list
-        if sol.satisfies_capacity() and sol.satisfies_cost():
+        if sol.satisfies_cost():
             solution_list.append(sol.clone())
+            sol.calculate_maxMin()
 
     # Check if any feasible solution is constructed
     if len(solution_list) == 0:
@@ -195,7 +187,7 @@ def deconstruct(inst: dict, config: dict, build_mode: tuple) -> Solution:
         sol.of_MaxMin = 0
         solution_list.append(sol)
 
-    return solution_list, algorithm
+    return solution_list, combination
 
 
 def create_candidate_list(sol: Solution, first: int = -1) -> list:
@@ -219,9 +211,7 @@ def create_candidate_list(sol: Solution, first: int = -1) -> list:
         if c != first:
             d_sum = sol.distance_sum_to_solution(c)
             d_min = sol.minimum_distance_to_solution(c)
-            cl.append([d_sum, d_min, c])
-
-    cl = calculate_custom_maxsum_objective_function(sol, cl)
+            cl.append([d_sum, d_min, c, sol.instance['c'][c], -sol.instance['a'][c]])
 
     return cl
 
@@ -240,11 +230,17 @@ def update_candidate_list(sol: Solution, cl: list, added: int = -1, removed: int
       removed (int): represents the ID of the candidate that was removed from the solution.
     Defaults to -1 when no candidate is removed.
     '''
+
+    if added != -1:
+        matrix = sol.instance['d'][added]
+    else:
+        matrix = sol.instance['d'][removed]
+
     for i in range(len(cl)):
         c = cl[i]
 
         if added != -1:
-            c_to_added_distance = sol.instance['d'][added][c[2]]
+            c_to_added_distance = matrix[c[2]]
 
             # Update MaxSum objective value
             c[0] += c_to_added_distance
@@ -254,7 +250,7 @@ def update_candidate_list(sol: Solution, cl: list, added: int = -1, removed: int
                 c[1] = c_to_added_distance
 
         if removed != -1:
-            c_to_removed_distance = sol.instance['d'][removed][c[2]]
+            c_to_removed_distance = matrix[c[2]]
 
             # Update MaxSum objective value
             c[0] -= c_to_removed_distance
@@ -262,40 +258,3 @@ def update_candidate_list(sol: Solution, cl: list, added: int = -1, removed: int
             # If the distance to the removed is equal to current MaxMin
             if c_to_removed_distance == c[1]:
                 c[1] = sol.minimum_distance_to_solution(c[2])
-
-    if len(cl) > 0:
-        cl = calculate_custom_maxsum_objective_function(sol, cl)
-
-
-def calculate_custom_maxsum_objective_function(sol: Solution, cl: list):
-    # Extract values separately
-    dsum_values = [item[0] for item in cl]
-    cost_values = [sol.instance['a'][c[2]] for c in cl]
-    cap_values = [sol.instance['c'][c[2]] for c in cl]
-
-    # Compute min and max
-    dsum_min, dsum_max = min(dsum_values), max(dsum_values)
-    cost_min, cost_max = min(cost_values), max(cost_values)
-    cap_min, cap_max = min(cap_values), max(cap_values)
-
-    # Normalize using min-max scaling
-    normalized_dsum = []
-    normalized_cost = []
-    normalized_cap = []
-    for i in range(len(cl)):
-        normalized_dsum.append((dsum_values[i] - dsum_min) / (dsum_max - dsum_min) if dsum_max != dsum_min else 0)
-        normalized_cost.append((cost_values[i] - cost_min) / (cost_max - cost_min) if cost_max != cost_min else 0)
-        normalized_cap.append((cap_values[i] - cap_min) / (cap_max - cap_min) if cap_max != cap_min else 0)
-
-    # Add new weighted MaxSum value to candidate list
-    cl = [
-        [
-            cl[i][0],
-            cl[i][1],
-            cl[i][2],  # Keep the ID unchanged
-            -normalized_cost[i]
-        ]
-        for i in range(len(cl))
-    ]
-
-    return cl
