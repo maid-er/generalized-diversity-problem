@@ -3,7 +3,7 @@ import datetime
 import itertools
 import os
 import pandas as pd
-
+import numpy as np
 from algorithms import grasp
 from structure import instance
 
@@ -14,7 +14,7 @@ import matplotlib.pyplot  as plt
 from structure import dominance
 from collections import defaultdict
 import statistics
-
+from pymoo.indicators.hv import HV
 logging = load_logger(__name__)
 
 
@@ -107,7 +107,16 @@ def execute_instance(path: str, config: dict, results: OutputHandler, rng) -> fl
                         f'_{config.get("scheme")[:3]}'
                         # f'_nb{len(config.get("neighborhoods"))}'
                         ).replace('.', '')
-    results.save(dom_result_table, result_table, c_result_table, add_data, fig, algorithm_params, path)
+    # results.save(dom_result_table, result_table, c_result_table, add_data, fig, algorithm_params, path)
+    # Calculate hypervolume
+
+    current_pareto_front = result_table[['MaxSum', 'MaxMin']].to_numpy()
+    # Calculate hypervolume
+    ind = HV(ref_point=np.array([0.0, 0.0]))
+    # *(-1) since it's a maximization problem
+    hypervolume = ind((-1) * current_pareto_front)
+
+    return hypervolume
 
 
 def execute_combinations(config, preprocess, combinations,combinations_dict_alpha, max_time, start,

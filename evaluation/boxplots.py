@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.express as px
 
 # Directory with results
-result_dir = 'outputestaru'
+result_dir = 'output_all_experiments'
 
 file_path = os.path.join(result_dir, 'indicators.csv')
 

@@ -1,0 +1,16 @@
+instances/Test_set/Test_set/GKD-b_11_n50_b02_m5_k02.txt
+instances/Test_set/Test_set/GKD-b_11_n50_b02_m5_k03.txt
+instances/Test_set/Test_set/GKD-b_11_n50_b03_m5_k02.txt
+instances/Test_set/Test_set/GKD-b_11_n50_b03_m5_k03.txt
+instances/Test_set/Test_set/GKD-b_41_n150_b02_m15_k02.txt
+instances/Test_set/Test_set/GKD-b_41_n150_b02_m15_k03.txt
+instances/Test_set/Test_set/GKD-b_41_n150_b03_m15_k02.txt
+instances/Test_set/Test_set/GKD-b_41_n150_b03_m15_k03.txt
+instances/Test_set/Test_set/GKD-c_01_n500_b02_m50_k02.txt
+instances/Test_set/Test_set/GKD-c_01_n500_b02_m50_k03.txt
+instances/Test_set/Test_set/GKD-c_01_n500_b03_m50_k02.txt
+instances/Test_set/Test_set/GKD-c_01_n500_b03_m50_k03.txt
+instances/Test_set/Test_set/MDG-b_01_n500_b02_m50_k02.txt
+instances/Test_set/Test_set/MDG-b_01_n500_b02_m50_k03.txt
+instances/Test_set/Test_set/MDG-b_01_n500_b03_m50_k02.txt
+instances/Test_set/Test_set/MDG-b_01_n500_b03_m50_k03.txt
