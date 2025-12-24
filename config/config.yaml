@@ -5,9 +5,9 @@
   mo_approach_C: 'AltBwS'  # AltInS, or AltBwS (default) // for a single objective approach MaxSum or MaxMin
   parameters:
     distribution: 'Geometric'  # Triangular or Geometric
-    beta: 0.5  # From 0 to 1 // if -1, random selection for each construction
-    threshold: 5
-    std_multiplier: 1.5
+    beta: 0.4232  # From 0 to 1 // if -1, random selection for each construction
+    threshold: 4.3294
+    std_multiplier: 1.59654
   # Local Improvement stage
   mo_approach_LS: 'Dom'  # Dom, or Alt (PR?¿?¿) // for a single objective approach MaxSum or MaxMin
   strategy: 'VND'  # Standard, or VND

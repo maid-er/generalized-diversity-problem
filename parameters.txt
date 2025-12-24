@@ -1,3 +1,4 @@
-std_interval    c (1.0, 1.5, 3, 100)
-beta    r (0.1, 1.0)
-threshold   c (0.0, 2.0, 5.0, 10.0)
+# Nombre   Etiqueta   Tipo    Rango/Valores
+std_interval          "--std_interval "     r       (1.0, 5.0)
+beta      "--beta " r       (0.1, 0.9)
+threshold      "--threshold " r       (0.0, 10.0)

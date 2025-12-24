@@ -44,6 +44,8 @@ def execute(inst: dict, config: dict, preprocess:bool, combination: tuple, combi
     else:
         solution_list, combination = biased_randomized.deconstruct(inst, config, combination, alpha, start, rng)
 
+    if len(solution_list) == 0:
+        return [], []
     c_sol_list = [s.clone() for s in solution_list]
     # Local Search phase
     ls_sols = [0]

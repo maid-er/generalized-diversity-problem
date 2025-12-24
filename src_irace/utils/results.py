@@ -11,7 +11,7 @@ class OutputHandler:
         '''Initialize OutputHandler'''
         self.execution_n = -1
         # TODO add boolean input for PLOT
-        self._get_execution_number()
+        # self._get_execution_number()
 
     def pareto_front(self, table: pd.DataFrame, instance: str) -> go.Figure:
         '''

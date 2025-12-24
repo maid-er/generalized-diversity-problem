@@ -40,7 +40,7 @@ def execute_instance(path: str, config: dict, results: OutputHandler, rng) -> fl
     c_result_table = pd.DataFrame(columns=['Solution', 'MaxSum', 'MaxMin', 'Cost', 'Capacity', 'Time'])
     result_table = pd.DataFrame(columns=['Solution', 'MaxSum', 'MaxMin', 'Cost', 'Capacity', 'Time'])
 
-    print('Solving instance %s:', path)
+    # print('Solving instance %s:', path)
     # Read instance
     inst = instance.read_instance(path)
 
@@ -61,14 +61,16 @@ def execute_instance(path: str, config: dict, results: OutputHandler, rng) -> fl
     execute_combinations(config, True, combinations, combinations_dict_alpha, max_time, start,
                              inst, results_dict, all_c_solutions, all_solutions, c_result_table, result_table, rng)
 
-    post_combinations, pf_idx = scan_results(combinations, results_dict, start, config.get("parameters").get("threshold"))
+    if len(all_solutions) == 0:
+        return 0
 
+    post_combinations, pf_idx = scan_results(combinations, results_dict, start, config.get("parameters").get("threshold"))
     pareto_solutions = [results_dict[i] for i in pf_idx if results_dict[i]["combination"] in post_combinations]
 
     #Update the alpha interval for the combinations
 
     results_alpha = analyze_alpha(pareto_solutions)
-    print(results_alpha)
+    # print(results_alpha)
 
     if config.get("parameters").get("std_multiplier") != "All":
 
@@ -76,7 +78,7 @@ def execute_instance(path: str, config: dict, results: OutputHandler, rng) -> fl
 
             combinations_dict_alpha[key] = [ max(0, value["mean"] - config.get("parameters").get("std_multiplier") * value["std"]), min(1, value["mean"] + config.get("parameters").get("std_multiplier") * value["std"] )]
 
-        print(combinations_dict_alpha)
+        # print(combinations_dict_alpha)
 
 
     start = datetime.datetime.now()
@@ -92,29 +94,21 @@ def execute_instance(path: str, config: dict, results: OutputHandler, rng) -> fl
     # Compute execution time
     elapsed = datetime.datetime.now() - start
     secs = round(elapsed.total_seconds(), 2)
-    print('Execution time: %s', secs)
-    add_data = {
-        'time': [secs],
-        'all_sols': [len(all_solutions)],
-        'nd_sols': [len(dom_result_table)]
-    }
 
-    # Build and plot Pareto Front
-    fig = results.pareto_front(dom_result_table, path)
-    # Save table and plot with results
-    algorithm_params = (f'IT{config.get("iterations")}'
-                        f'_b{config.get("parameters").get("beta")}'
-                        f'_{config.get("scheme")[:3]}'
-                        # f'_nb{len(config.get("neighborhoods"))}'
-                        ).replace('.', '')
-    # results.save(dom_result_table, result_table, c_result_table, add_data, fig, algorithm_params, path)
     # Calculate hypervolume
 
     current_pareto_front = result_table[['MaxSum', 'MaxMin']].to_numpy()
     # Calculate hypervolume
-    ind = HV(ref_point=np.array([0.0, 0.0]))
-    # *(-1) since it's a maximization problem
-    hypervolume = ind((-1) * current_pareto_front)
+    # Si el frente de Pareto está vacío, devolver 0
+    if current_pareto_front.size == 0:
+        hypervolume = 0
+    else:
+        ind = HV(ref_point=np.array([0.0, 0.0]))
+        # *(-1) porque es un problema de maximización
+        try:
+            hypervolume = ind((-1) * current_pareto_front)
+        except:
+            return 0
 
     return hypervolume
 
@@ -130,7 +124,7 @@ def execute_combinations(config, preprocess, combinations,combinations_dict_alph
         if not preprocess:
             # If time is exceeded stop execution
             if datetime.timedelta(seconds=max_time) < datetime.datetime.now() - start:
-                print('Maximum allowed execution time is exceeded. Total IT: %s', i)
+                # print('Maximum allowed execution time is exceeded. Total IT: %s', i)
                 break
 
         # Run B-GRASP-VND
@@ -158,26 +152,6 @@ def execute_combinations(config, preprocess, combinations,combinations_dict_alph
                                                                       sol.total_cost,
                                                                       sol.total_capacity,
                                                                       sol.time]
-
-def execute_directory(directory: str, config: dict, rng):
-    '''
-    Scans a directory for text files, executes instances with specified configurations, and saves
-    the results in a CSV file.
-
-    Args:
-      directory (str): represents the path to the directory where the files (instances) are located.
-      config (dict): contains the configuration settings for the algorithm.
-    '''
-    with os.scandir(directory) as files:
-        ficheros = [file.name for file in files if file.is_file() and file.name.endswith(".txt")]
-
-    results = OutputHandler()
-
-    for f in ficheros:
-        path = os.path.join(directory, f)
-        execute_instance(path, config, results, rng)
-
-
 
 def plot_solutions(results_dict, color_map):
 
@@ -294,10 +268,10 @@ def scan_results(combinations, results_dict, start, threshold):
 
     stats, pf_idx, total_pf = compute_global_pareto_stats(results_dict)
 
-    print(f"Global PF size = {total_pf}")
+    # print(f"Global PF size = {total_pf}")
 
-    for combo, s in stats.items():
-        print(f"{combo}: {s['pareto']} / {total_pf}  → {s['percentage']:.1f}%")
+    # for combo, s in stats.items():
+    #     print(f"{combo}: {s['pareto']} / {total_pf}  → {s['percentage']:.1f}%")
 
     post_combinations = []
     for combo, s in stats.items():
@@ -306,7 +280,7 @@ def scan_results(combinations, results_dict, start, threshold):
 
     elapsed = datetime.datetime.now() - start
     secs = round(elapsed.total_seconds(), 2)
-    print('Execution time preprocess: %s', secs)
+    # print('Execution time preprocess: %s', secs)
 
     # results_dict_pareto = [plot for plot in results_dict if plot["combination"] in post_combinations]
     # plot_solutions(results_dict_pareto, color_map)

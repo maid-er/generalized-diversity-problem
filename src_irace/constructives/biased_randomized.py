@@ -96,11 +96,11 @@ def construct(inst: dict, config: dict, combination: tuple, alpha: float, start,
             solution_list.append(sol.clone())
 
     # Check if any feasible solution is constructed
-    if len(solution_list) == 0:
+    # if len(solution_list) == 0:
         # logging.error('No feasible solution reached in the construction phase.')
-        sol = Solution(inst)
-        sol.of_MaxMin = 0
-        solution_list.append(sol)
+        # sol = Solution(inst)
+        # sol.of_MaxMin = 0
+        # solution_list.append(sol)
 
     return solution_list, combination
 
@@ -185,12 +185,12 @@ def deconstruct(inst: dict, config: dict, combination: tuple, alpha: float, star
             solution_list.append(sol.clone())
             sol.calculate_maxMin()
 
-    # Check if any feasible solution is constructed
-    if len(solution_list) == 0:
-        # logging.error('No feasible solution reached in the construction phase.')
-        sol = Solution(inst)
-        sol.of_MaxMin = 0
-        solution_list.append(sol)
+    # # Check if any feasible solution is constructed
+    # if len(solution_list) == 0:
+    #     # logging.error('No feasible solution reached in the construction phase.')
+    #     sol = Solution(inst)
+    #     sol.of_MaxMin = 0
+    #     solution_list.append(sol)
 
     return solution_list, combination
 

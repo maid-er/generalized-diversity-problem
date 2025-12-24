@@ -1,9 +1,6 @@
-scenario = default
-
-targetRunner = ./run.sh
-parameterFile = parameters.txt
-
+targetRunner = "target-runner.bat"
+parameterFile = "parameters.txt"
 maxExperiments = 500
-logFile = irace.log
-seed = 12345
-trainInstancesFile = instances.txt
+trainInstancesFile = "instances.txt"
+logFile = "irace.log"
+parallel = 8
