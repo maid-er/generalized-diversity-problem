@@ -35,9 +35,7 @@ def execute_instance(path: str, config: dict, results: OutputHandler, rng) -> fl
       (float): returns the total execution time in seconds.
     '''
     # Initialize list and table to save solutions
-    all_c_solutions = []  # Solutions from construction stage
     all_solutions = []  # Final solutions after the LS stage
-    c_result_table = pd.DataFrame(columns=['Solution', 'MaxSum', 'MaxMin', 'Cost', 'Capacity', 'Time'])
     result_table = pd.DataFrame(columns=['Solution', 'MaxSum', 'MaxMin', 'Cost', 'Capacity', 'Time'])
 
     # print('Solving instance %s:', path)
@@ -59,7 +57,7 @@ def execute_instance(path: str, config: dict, results: OutputHandler, rng) -> fl
     combinations_dict_alpha = {comb: [0, 1] for comb in combinations} # initial value for alpha interval
 
     execute_combinations(config, True, combinations, combinations_dict_alpha, max_time, start,
-                             inst, results_dict, all_c_solutions, all_solutions, c_result_table, result_table, rng)
+                             inst, results_dict, all_solutions, result_table, rng)
 
     if len(all_solutions) == 0:
         return 0
@@ -84,16 +82,16 @@ def execute_instance(path: str, config: dict, results: OutputHandler, rng) -> fl
     start = datetime.datetime.now()
 
     execute_combinations(config, False, post_combinations, combinations_dict_alpha, max_time, start,
-                         inst, results_dict, all_c_solutions, all_solutions, c_result_table, result_table, rng)
+                         inst, results_dict, all_solutions, result_table, rng)
 
     # Find non-dominated solutions among all constructions
 
-    is_non_dominated = dominance.get_nondominated_solutions(all_solutions)
-    dom_result_table = result_table[is_non_dominated].reset_index(drop=True)
+    # is_non_dominated = dominance.get_nondominated_solutions(all_solutions)
+    # dom_result_table = result_table[is_non_dominated].reset_index(drop=True)
 
     # Compute execution time
-    elapsed = datetime.datetime.now() - start
-    secs = round(elapsed.total_seconds(), 2)
+    # elapsed = datetime.datetime.now() - start
+    # secs = round(elapsed.total_seconds(), 2)
 
     # Calculate hypervolume
 
@@ -114,7 +112,7 @@ def execute_instance(path: str, config: dict, results: OutputHandler, rng) -> fl
 
 
 def execute_combinations(config, preprocess, combinations,combinations_dict_alpha, max_time, start,
-                         inst, results_dict, all_c_solutions, all_solutions, c_result_table, result_table, rng):
+                         inst, results_dict, all_solutions, result_table, rng):
 
     max_iterations = config.get('iterations') if not preprocess else config.get('pre_iterations') * len(combinations)
     for i in range(max_iterations):
@@ -129,20 +127,9 @@ def execute_combinations(config, preprocess, combinations,combinations_dict_alph
 
         # Run B-GRASP-VND
         # print(f'Finding solution #{i+1}')
-        c_sol_list, solution_list = grasp.execute(inst, config, preprocess, combination, combinations_dict_alpha, i, results_dict, start, rng)
+        solution_list = grasp.execute(inst, config, preprocess, combination, combinations_dict_alpha, i, results_dict, start, rng)
         # Save solution set found in this IT
-        all_c_solutions += c_sol_list
         all_solutions += solution_list
-
-        # Add new solutions to result_table
-        # for sol in solution_list:
-        for c_sol in c_sol_list:
-            selected_nodes = ' - '.join([str(s) for s in sorted(c_sol.solution_set)])
-            c_result_table.loc[len(c_result_table)] = [selected_nodes] + [ round(c_sol.of_MaxSum,3),
-                                                                      round(c_sol.of_MaxMin,3),
-                                                                      c_sol.total_cost,
-                                                                      c_sol.total_capacity,
-                                                                        c_sol.time]
 
         # Add new solutions to result_table
         for sol in solution_list:

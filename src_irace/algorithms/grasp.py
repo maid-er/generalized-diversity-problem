@@ -46,7 +46,7 @@ def execute(inst: dict, config: dict, preprocess:bool, combination: tuple, combi
 
     if len(solution_list) == 0:
         return [], []
-    c_sol_list = [s.clone() for s in solution_list]
+    # c_sol_list = [s.clone() for s in solution_list]
     # Local Search phase
     ls_sols = [0]
     if len(solution_list) > 1:
@@ -61,9 +61,9 @@ def execute(inst: dict, config: dict, preprocess:bool, combination: tuple, combi
     else:
         for sol in [solution_list[i] for i in ls_sols]:  # Apply LS only to 1st and last solutions
             if len(sol.solution_set) > 0:  # Ensure a solution is constructed
-                variable_neighborhood_descent.improve(sol, config)
+                variable_neighborhood_descent.improve(sol, inst, config)
                 time_solution = datetime.datetime.now() - start
                 sol.time = round(time_solution.total_seconds(), 2)
 
-    return c_sol_list, solution_list
+    return solution_list
 

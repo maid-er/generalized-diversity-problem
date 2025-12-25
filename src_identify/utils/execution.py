@@ -17,8 +17,7 @@ import statistics
 
 logging = load_logger(__name__)
 
-
-def execute_instance(path: str, config: dict, results: OutputHandler, rng) -> float:
+def execute_instance(path: str, config: dict, results: OutputHandler, rng, seed) -> float:
     '''
     Reads an instance, iterates to find solutions using GRASP algorithm, evaluates the solutions,
     identifies non-dominated solutions, computes execution time, and saves results.
@@ -51,6 +50,8 @@ def execute_instance(path: str, config: dict, results: OutputHandler, rng) -> fl
     policies = ["C", "D"]
     cost_focus = [0,1,2,3]
     cost_weight = [0,1,2,3,4,5]
+    # cost_focus = [0, 1]
+    # cost_weight = [0]
 
     combinations_focus = list(itertools.product(policies, ["focus"], cost_focus))
     combinations_weight = list(itertools.product(policies, ["weight"], cost_weight))
@@ -107,7 +108,7 @@ def execute_instance(path: str, config: dict, results: OutputHandler, rng) -> fl
                         f'_{config.get("scheme")[:3]}'
                         # f'_nb{len(config.get("neighborhoods"))}'
                         ).replace('.', '')
-    results.save(dom_result_table, result_table, c_result_table, add_data, fig, algorithm_params, path)
+    results.save(dom_result_table, result_table, c_result_table, add_data, fig, algorithm_params, path, seed)
 
 
 def execute_combinations(config, preprocess, combinations,combinations_dict_alpha, max_time, start,
@@ -150,7 +151,7 @@ def execute_combinations(config, preprocess, combinations,combinations_dict_alph
                                                                       sol.total_capacity,
                                                                       sol.time]
 
-def execute_directory(directory: str, config: dict, rng):
+def execute_directory(directory: str, config: dict, rng, seed):
     '''
     Scans a directory for text files, executes instances with specified configurations, and saves
     the results in a CSV file.
@@ -166,7 +167,7 @@ def execute_directory(directory: str, config: dict, rng):
 
     for f in ficheros:
         path = os.path.join(directory, f)
-        execute_instance(path, config, results, rng)
+        execute_instance(path, config, results, rng, seed)
 
 
 
@@ -300,6 +301,6 @@ def scan_results(combinations, results_dict, start, threshold):
     print('Execution time preprocess: %s', secs)
 
     # results_dict_pareto = [plot for plot in results_dict if plot["combination"] in post_combinations]
-    # plot_solutions(results_dict_pareto, color_map)
+    # plot_solutions(results_dict, color_map)
 
     return post_combinations, pf_idx

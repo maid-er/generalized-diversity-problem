@@ -10,7 +10,6 @@ from utils.logger import load_logger
 
 logging = load_logger(__name__)
 
-
 def execute(inst: dict, config: dict, preprocess:bool, combination: tuple, combinations_dict_alpha:dict, iteration: int, results_dict, start, rng) -> Solution:
     '''The function executes a GRASP algorithm with a specified number of iterations and a given
     beta value, selecting the best solution found during the iterations.
@@ -43,7 +42,7 @@ def execute(inst: dict, config: dict, preprocess:bool, combination: tuple, combi
         solution_list, combination = biased_randomized.construct(inst, config, combination, alpha, start, rng)
     else:
         solution_list, combination = biased_randomized.deconstruct(inst, config, combination, alpha, start, rng)
-
+    # print(len(solution_list))
     c_sol_list = [s.clone() for s in solution_list]
     # Local Search phase
     ls_sols = [0]
@@ -59,7 +58,7 @@ def execute(inst: dict, config: dict, preprocess:bool, combination: tuple, combi
     else:
         for sol in [solution_list[i] for i in ls_sols]:  # Apply LS only to 1st and last solutions
             if len(sol.solution_set) > 0:  # Ensure a solution is constructed
-                variable_neighborhood_descent.improve(sol, config)
+                variable_neighborhood_descent.improve(sol, inst, config)
                 time_solution = datetime.datetime.now() - start
                 sol.time = round(time_solution.total_seconds(), 2)
 

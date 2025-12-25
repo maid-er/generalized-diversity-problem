@@ -32,6 +32,8 @@ def get_coincident_instances(result_dir: str, inst_set: str, inst_subset: str) -
     common_instances = list(set.intersection(*map(set, instances)))
     common_instances = [i for i in common_instances
                         if not (('b03' in i) and ('k02' in i))]
+    # common_instances = [i for i in common_instances]
+
 
     return common_instances
 
@@ -166,7 +168,7 @@ def calculate_performance_indicators(result_dir, inst_set, inst_subset, instance
             # Save summary
             summary = pd.DataFrame({'alg_config': [alg]}) \
                 .join(pd.DataFrame(evaluation_table.mean()).transpose())
-            summary.drop(columns=['ex_number'], inplace=True)
+            summary.drop(columns=['seed'], inplace=True)
             general_indicators = general_indicators._append(
                 pd.DataFrame({'inst': [inst]}).join(summary))
 

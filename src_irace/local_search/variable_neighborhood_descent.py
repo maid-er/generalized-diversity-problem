@@ -14,7 +14,7 @@ OBJECTIVE_FUNCTIONS = {0: 'MaxSum',
                        1: 'MaxMin'}
 
 
-def improve(sol: Solution, config: dict):
+def improve(sol: Solution, inst, config: dict):
     '''Iteratively tries to improve a solution until no further improvements can be made.
 
     Args:
@@ -60,7 +60,7 @@ def improve(sol: Solution, config: dict):
         elif ls_scheme == 'Fast':
             improve = fas.try_improvement(sol, switch)
         elif ls_scheme == 'First':
-            improve = fis.try_improvement(sol, objective, mo_approach, switch)
+            improve = fis.try_improvement(sol, inst, objective, mo_approach, switch)
         if improve:
             #print('Improved solution.')
             nb = 1  # Go back to first neighborhood

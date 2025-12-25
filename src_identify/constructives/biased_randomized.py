@@ -37,19 +37,19 @@ def construct(inst: dict, config: dict, combination: tuple, alpha: float, start,
 
     solution_list = []
 
-    sol = Solution(inst)  # Initialize solution
+    sol = Solution()  # Initialize solution
     n = inst['n']
     u = rng.randint(0, n-1)  # Select first node
-    sol.add_to_solution(u)
+    sol.add_to_solution(inst, u)
     # sol.comprobate()
-    cl = create_candidate_list(sol, u)
+    cl = create_candidate_list(sol, inst, u)
 
 
-    while sol.satisfies_cost() and len(cl) > 0:
+    while sol.satisfies_cost(inst) and len(cl) > 0:
         # sol.comprobate()
 
         # Filter only nodes that provide a feasible solution
-        cl = [c for c in cl if sol.satisfies_cost([c[2]])]
+        cl = [c for c in cl if sol.satisfies_cost(inst,[c[2]])]
         if len(cl) == 0:  # If the cost won't be met with any new element
             break
 
@@ -58,7 +58,8 @@ def construct(inst: dict, config: dict, combination: tuple, alpha: float, start,
             cl.sort(key=lambda row: -row[focus_objective])
 
         else:
-            focus_objectives = [[0, 1],[0, 3], [0, 4], [1, 3], [1, 4], [3, 4]]
+            focus_objectives = [[0, 1], [0, 3], [0, 4], [1, 3], [1, 4], [3, 4]]
+            # focus_objectives = [[0, 1]]
             selected_focus = focus_objectives[combination[2]]
             max_random_index_0 = max([c[selected_focus[0]] for c in cl])
             max_random_index_1 = max([c[selected_focus[1]] for c in cl])
@@ -85,12 +86,12 @@ def construct(inst: dict, config: dict, combination: tuple, alpha: float, start,
 
         # Add selected node to solution
         cSel = cl[selIdx]
-        sol.add_to_solution(cSel[2], cSel[1], cSel[0])
+        sol.add_to_solution(inst, cSel[2], cSel[1], cSel[0])
         cl.remove(cSel)
-        update_candidate_list(sol, cl, added=cSel[2])
+        update_candidate_list(sol, inst, cl, added=cSel[2])
 
         # If solution is feasible, save it in the solution list
-        if sol.satisfies_capacity():
+        if sol.satisfies_capacity(inst):
             time_solution = datetime.datetime.now() - start
             sol.time = round(time_solution.total_seconds(), 2)
             solution_list.append(sol.clone())
@@ -98,7 +99,7 @@ def construct(inst: dict, config: dict, combination: tuple, alpha: float, start,
     # Check if any feasible solution is constructed
     if len(solution_list) == 0:
         # logging.error('No feasible solution reached in the construction phase.')
-        sol = Solution(inst)
+        sol = Solution()
         sol.of_MaxMin = 0
         solution_list.append(sol)
 
@@ -131,17 +132,17 @@ def deconstruct(inst: dict, config: dict, combination: tuple, alpha: float, star
 
     solution_list = []
 
-    sol = Solution(inst)  # Initialize solution
+    sol = Solution()  # Initialize solution
     n = inst['n']
     # Generate initial solution set with all the nodes
     for u in range(n):
-        sol.add_to_solution(u)
-    cl = create_candidate_list(sol)
-    while sol.satisfies_capacity() and len(cl) > 0:
+        sol.add_to_solution(inst, u)
+    cl = create_candidate_list(sol, inst)
+    while sol.satisfies_capacity(inst) and len(cl) > 0:
         # sol.comprobate()
 
         # Filter only nodes that provide a feasible solution
-        cl = [c for c in cl if sol.satisfies_capacity([c[2]])]
+        cl = [c for c in cl if sol.satisfies_capacity(inst, [c[2]])]
         if len(cl) == 0:  # If the cost won't be met with any new element
             break
 
@@ -151,6 +152,7 @@ def deconstruct(inst: dict, config: dict, combination: tuple, alpha: float, star
 
         else:
             focus_objectives = [[0, 1],[0, 3], [0, 4], [1, 3], [1, 4], [3, 4]]
+            # focus_objectives = [[0, 1]]
             selected_focus = focus_objectives[combination[2]]
 
             max_random_index_0 = max([c[selected_focus[0]] for c in cl])
@@ -174,28 +176,28 @@ def deconstruct(inst: dict, config: dict, combination: tuple, alpha: float, star
 
         # Add selected node to solution
         cSel = cl[selIdx]
-        sol.remove_from_solution_fast(cSel[2], cSel[1], cSel[0])
+        sol.remove_from_solution_fast(inst, cSel[2], cSel[1], cSel[0])
         cl.remove(cSel)
-        update_candidate_list(sol, cl, removed=cSel[2])
+        update_candidate_list(sol, inst, cl, removed=cSel[2])
 
         # If solution is feasible, save it in the solution list
-        if sol.satisfies_cost():
+        if sol.satisfies_cost(inst ):
             time_solution = datetime.datetime.now() - start
             sol.time = round(time_solution.total_seconds(), 2)
             solution_list.append(sol.clone())
-            sol.calculate_maxMin()
+            sol.calculate_maxMin(inst)
 
     # Check if any feasible solution is constructed
     if len(solution_list) == 0:
         # logging.error('No feasible solution reached in the construction phase.')
-        sol = Solution(inst)
+        sol = Solution()
         sol.of_MaxMin = 0
         solution_list.append(sol)
 
     return solution_list, combination
 
 
-def create_candidate_list(sol: Solution, first: int = -1) -> list:
+def create_candidate_list(sol: Solution, instance, first: int = -1) -> list:
     '''The function creates a list of candidate solutions based on the distance to the given
     solution and excluding the first candidate.
 
@@ -210,18 +212,18 @@ def create_candidate_list(sol: Solution, first: int = -1) -> list:
     of the candidate solution. It defaults to -1 when the objective values of every candidates
     need to be calculated.
     '''
-    n = sol.instance['n']
+    n = instance['n']
     cl = []
     for c in range(n):
         if c != first:
-            d_sum = sol.distance_sum_to_solution(c)
-            d_min = sol.minimum_distance_to_solution(c)
-            cl.append([d_sum, d_min, c, sol.instance['c'][c], -sol.instance['a'][c]])
+            d_sum = sol.distance_sum_to_solution(instance, c )
+            d_min = sol.minimum_distance_to_solution(instance, c)
+            cl.append([d_sum, d_min, c, instance['c'][c], -instance['a'][c]])
 
     return cl
 
 
-def update_candidate_list(sol: Solution, cl: list, added: int = -1, removed: int = -1):
+def update_candidate_list(sol: Solution, instance, cl: list, added: int = -1, removed: int = -1):
     '''Iterates through a candidate list and updates the first (sum of distances) and second
     (minimum distance) elements of each candidate adding the distance to the new `added` element.
 
@@ -237,9 +239,9 @@ def update_candidate_list(sol: Solution, cl: list, added: int = -1, removed: int
     '''
 
     if added != -1:
-        matrix = sol.instance['d'][added]
+        matrix = instance['d'][added]
     else:
-        matrix = sol.instance['d'][removed]
+        matrix = instance['d'][removed]
 
     for i in range(len(cl)):
         c = cl[i]
@@ -262,4 +264,4 @@ def update_candidate_list(sol: Solution, cl: list, added: int = -1, removed: int
             # Update MaxMin objective value
             # If the distance to the removed is equal to current MaxMin
             if c_to_removed_distance == c[1]:
-                c[1] = sol.minimum_distance_to_solution(c[2])
+                c[1] = sol.minimum_distance_to_solution(instance, c[2])

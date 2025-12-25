@@ -11,7 +11,7 @@ class OutputHandler:
         '''Initialize OutputHandler'''
         self.execution_n = -1
         # TODO add boolean input for PLOT
-        self._get_execution_number()
+        # self._get_execution_number()
 
     def pareto_front(self, table: pd.DataFrame, instance: str) -> go.Figure:
         '''
@@ -33,7 +33,7 @@ class OutputHandler:
         return fig
 
     def save(self, table: pd.DataFrame, all_sols, c_sols, add_data: dict,
-             figure: go.Figure, params: str, instance: str):
+             figure: go.Figure, params: str, instance: str, seed):
         '''
         This function saves the solution DataFrame as a CSV and the Figure as an HTML file in a
         specified directory structure that contains the instance name and execution number as ID.
@@ -47,7 +47,7 @@ class OutputHandler:
         instance_path = instance.split(os.sep)[1:]
         instance_path = [s.replace('.txt', '') for s in instance_path]
         output_path = os.path.join('output',
-                                   f'B-GRASP_test{params}',
+                                   f'B-GRASP_HYP_TestSet{params}',
                                    *instance_path)
 
         os.makedirs(output_path, exist_ok=True)
@@ -61,10 +61,10 @@ class OutputHandler:
         #              index=False)
 
         table.to_csv(os.path.join(output_path,
-                                  f'results_{self.execution_n}.csv'),
+                                  f'results_{seed}.csv'),
                      index=False)
 
-        self._save_execution_add_data(add_data, output_path)
+        self._save_execution_add_data(add_data, output_path, seed)
 
         # figure.write_html(os.path.join(output_path,
         #                                f'solution_{self.execution_n}.html'))
@@ -88,12 +88,12 @@ class OutputHandler:
             with open(execution_file, 'w') as file:
                 file.write(str(int(self.execution_n) + 1))
 
-    def _save_execution_add_data(self, add_data: dict, path: str):
+    def _save_execution_add_data(self, add_data: dict, path: str, seed):
         '''
         The function saves algorithm's execution time `secs` in seconds in a csv file.
         '''
         time_file = os.path.join(path, 'add_data.csv')
-        new_row = {'ex_number': [self.execution_n]}
+        new_row = {'seed': [seed]}
         new_row.update(add_data)
         if os.path.exists(time_file):
             time_table = pd.read_csv(time_file)

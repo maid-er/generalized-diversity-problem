@@ -2,19 +2,20 @@
 
 
 class Solution:
+    __slots__ = ['solution_set', 'of_MaxSum', 'of_MaxMin', 'total_cost',
+                 'total_capacity', 'instance', 'time']
     '''Auxiliar class to handle solution information'''
-    def __init__(self, instance: dict):
+    def __init__(self):
         '''Initialize Solution'''
         self.solution_set = set()
         self.of_MaxSum = 0
         self.of_MaxMin = 0x3f3f3f3f
         self.total_cost = 0
         self.total_capacity = 0
-        self.instance = instance
         self.time = 0
 
     def clone(self):
-        new_sol = Solution(self.instance)
+        new_sol = Solution()
         new_sol.solution_set = set(self.solution_set)
         new_sol.of_MaxMin = self.of_MaxMin
         new_sol.of_MaxSum = self.of_MaxSum
@@ -23,7 +24,7 @@ class Solution:
         new_sol.time = self.time
         return new_sol
 
-    def add_to_solution(self, u: int, min_distance: float = -1, sum_variation: float = -1):
+    def add_to_solution(self, instance, u: int, min_distance: float = -1, sum_variation: float = -1):
         '''Updates a solution by adding a specified element and its corresponding value to the
         objective function.
 
@@ -39,7 +40,7 @@ class Solution:
         '''
         if sum_variation == -1 or min_distance == -1:
             for s in self.solution_set:
-                distance_u_s = self.instance['d'][u][s]
+                distance_u_s = instance['d'][u][s]
                 self.of_MaxSum += distance_u_s
                 if self.of_MaxMin > distance_u_s:
                     self.of_MaxMin = distance_u_s
@@ -47,11 +48,11 @@ class Solution:
             self.of_MaxSum += sum_variation
             if self.of_MaxMin > min_distance:
                 self.of_MaxMin = min_distance
-        self.total_cost += self.instance['a'][u]
-        self.total_capacity += self.instance['c'][u]
+        self.total_cost += instance['a'][u]
+        self.total_capacity += instance['c'][u]
         self.solution_set.add(u)
 
-    def comprobate(self):
+    def comprobate(self, instance):
         '''Updates a solution by adding a specified element and its corresponding value to the
         objective function.
 
@@ -68,10 +69,10 @@ class Solution:
         total_cost = 0
         total_capacity = 0
         for u in self.solution_set:
-            total_cost += self.instance['a'][u]
-            total_capacity += self.instance['c'][u]
+            total_cost += instance['a'][u]
+            total_capacity += instance['c'][u]
         print((total_capacity, total_cost, self.total_capacity, self.total_cost))
-    def remove_from_solution(self, u: int, min_distance: float = -1, sum_variation: float = -1):
+    def remove_from_solution(self, instance, u: int, min_distance: float = -1, sum_variation: float = -1):
         '''Removes an element from a solution and updates the objective function value accordingly.
 
         Args:
@@ -86,18 +87,18 @@ class Solution:
         self.solution_set.remove(u)
         if sum_variation == -1 or min_distance == -1:
             for s in self.solution_set:
-                distance_u_s = self.instance['d'][u][s]
+                distance_u_s = instance['d'][u][s]
                 self.of_MaxSum -= distance_u_s
                 if self.of_MaxMin == distance_u_s:
-                    self.of_MaxMin = self.minimum_distance_in_solution()
+                    self.of_MaxMin = self.minimum_distance_in_solution(instance)
         else:
             self.of_MaxSum -= sum_variation
             if self.of_MaxMin == min_distance:
-                self.of_MaxMin = self.minimum_distance_in_solution()
-        self.total_cost -= self.instance['a'][u]
-        self.total_capacity -= self.instance['c'][u]
+                self.of_MaxMin = self.minimum_distance_in_solution(instance)
+        self.total_cost -= instance['a'][u]
+        self.total_capacity -= instance['c'][u]
 
-    def remove_from_solution_fast(self, u: int, min_distance: float = -1, sum_variation: float = -1):
+    def remove_from_solution_fast(self, instance, u: int, min_distance: float = -1, sum_variation: float = -1):
         '''Removes an element from a solution and updates the objective function value accordingly.
 
         Args:
@@ -112,7 +113,7 @@ class Solution:
         self.solution_set.remove(u)
         if sum_variation == -1 or min_distance == -1:
             for s in self.solution_set:
-                distance_u_s = self.instance['d'][u][s]
+                distance_u_s = instance['d'][u][s]
                 self.of_MaxSum -= distance_u_s
                 # if self.of_MaxMin == distance_u_s:
                 #     self.of_MaxMin = self.minimum_distance_in_solution()
@@ -120,11 +121,11 @@ class Solution:
             self.of_MaxSum -= sum_variation
             # if self.of_MaxMin == min_distance:
             #     self.of_MaxMin = self.minimum_distance_in_solution()
-        self.total_cost -= self.instance['a'][u]
-        self.total_capacity -= self.instance['c'][u]
+        self.total_cost -= instance['a'][u]
+        self.total_capacity -= instance['c'][u]
 
-    def calculate_maxMin(self):
-        self.of_MaxMin = self.minimum_distance_in_solution()
+    def calculate_maxMin(self, inst ):
+        self.of_MaxMin = self.minimum_distance_in_solution(inst)
 
     def contains(self, u: int) -> bool:
         '''Checks if a given candidate ID `u` is present in the current solution attribute
@@ -139,7 +140,7 @@ class Solution:
         '''
         return u in self.solution_set
 
-    def distance_sum_to_solution(self, u: int, without: list = [-1]) -> float:
+    def distance_sum_to_solution(self, instance, u: int, without: list = [-1]) -> float:
         '''Calculates the sum of the distances from a given node to the rest of the nodes in the
         solution graph, excluding the node specified with the optional input `without`.
 
@@ -156,13 +157,13 @@ class Solution:
         in solution `sol`, excluding the distance to a specific node `without` if provided.
         '''
         d = 0
-        distance = self.instance['d'][u]
+        distance = instance['d'][u]
         for s in self.solution_set:
             if s not in without:
                 d += distance[s]
         return round(d, 2)
 
-    def minimum_distance_to_solution(self, u: int, without: list = [-1]) -> float:
+    def minimum_distance_to_solution(self, instance, u: int, without: list = [-1]) -> float:
         '''Calculates the minimum distance from a given node to the rest of the nodes in the
         solution graph, excluding the node specified with the optional input `without`.
 
@@ -179,7 +180,7 @@ class Solution:
         nodes in solution `sol`, excluding the distance to a specific node `without` if provided.
         '''
         min_d = 0x3f3f3f3f
-        distance = self.instance['d'][u]
+        distance = instance['d'][u]
         for s in self.solution_set:
             if s not in without and s != u:
                 d = distance[s]
@@ -187,7 +188,7 @@ class Solution:
                     min_d = d
         return round(min_d, 2)
 
-    def minimum_distance_to_solution_bound(self, bound,  u: int, without: list = [-1]) -> float:
+    def minimum_distance_to_solution_bound(self, instance, bound,  u: int, without: list = [-1]) -> float:
         '''Calculates the minimum distance from a given node to the rest of the nodes in the
         solution graph, excluding the node specified with the optional input `without`.
 
@@ -204,7 +205,7 @@ class Solution:
         nodes in solution `sol`, excluding the distance to a specific node `without` if provided.
         '''
         min_d = 0x3f3f3f3f
-        distance = self.instance['d'][u]
+        distance = instance['d'][u]
         for s in self.solution_set:
             if s not in without and s != u:
                 d = distance[s]
@@ -214,22 +215,8 @@ class Solution:
                     min_d = d
         return round(min_d, 2)
 
-    def minimum_distance_in_solution_old(self):
-        '''
-        The function calculates the minimum pairwise distance between the nodes in the solution.
 
-        Returns:
-          (float): the minimum pairwise distance between the nodes in the solution set, rounded to
-        two decimal places.
-        '''
-        min_d = 0x3f3f3f3f
-        for s in self.solution_set:
-            d = self.minimum_distance_to_solution(s)
-            if d < min_d:
-                min_d = d
-        return round(min_d, 2)
-
-    def minimum_distance_in_solution(self):
+    def minimum_distance_in_solution(self, instance):
         '''
         The function calculates the minimum pairwise distance between the nodes in the solution.
 
@@ -239,7 +226,7 @@ class Solution:
         '''
         min_d = 0x3f3f3f3f
         for s1 in self.solution_set:
-            matrix = self.instance['d'][s1]
+            matrix = instance['d'][s1]
             for s2 in self.solution_set:
                 if s1 < s2:
                     d = matrix[s2]
@@ -256,7 +243,7 @@ class Solution:
         '''
         return len(self.solution_set) > 2
 
-    def satisfies_cost(self, u: int = -1, v: int = -1):
+    def satisfies_cost(self, instance, u: int = -1, v: int = -1):
         '''Checks if a solution meets the cost constraint.
 
         Args:
@@ -273,7 +260,7 @@ class Solution:
         # if v != -1:
         #     removing_candidate = sol['instance']['a'][v]
         possible_cost = self.total_cost
-        a = self.instance['a']
+        a = instance['a']
         if v != -1:
             for q in v:
                 possible_cost -= a[q]
@@ -281,9 +268,9 @@ class Solution:
             for q in u:
                 possible_cost += a[q]
 
-        return possible_cost < self.instance['K']
+        return possible_cost < instance['K']
 
-    def satisfies_cost_a(self, a,  u: int = -1, v: int = -1):
+    def satisfies_cost_a(self, instance, a,  u: int = -1, v: int = -1):
         '''Checks if a solution meets the cost constraint.
 
         Args:
@@ -307,9 +294,9 @@ class Solution:
             for q in u:
                 possible_cost += a[q]
 
-        return possible_cost < self.instance['K']
+        return possible_cost < instance['K']
 
-    def satisfies_capacity(self, u: int = -1, v: int = -1):
+    def satisfies_capacity(self, instance, u: int = -1, v: int = -1):
         '''Checks if a solution meets the capacity constraint.
 
         Args:
@@ -325,14 +312,14 @@ class Solution:
         possible_capacity = self.total_capacity
         if v != -1:
             for q in v:
-                possible_capacity -= self.instance['c'][q]
+                possible_capacity -= instance['c'][q]
         if u != -1:
             for q in u:
-                possible_capacity += self.instance['c'][q]
+                possible_capacity += instance['c'][q]
 
-        return possible_capacity > self.instance['B']
+        return possible_capacity > instance['B']
 
-    def satisfies_capacity_c(self, c, u: int = -1, v: int = -1):
+    def satisfies_capacity_c(self, instance, c, u: int = -1, v: int = -1):
         '''Checks if a solution meets the capacity constraint.
 
         Args:
@@ -353,4 +340,4 @@ class Solution:
             for q in u:
                 possible_capacity += c[q]
 
-        return possible_capacity > self.instance['B']
+        return possible_capacity > instance['B']
