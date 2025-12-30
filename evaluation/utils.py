@@ -30,9 +30,9 @@ def get_coincident_instances(result_dir: str, inst_set: str, inst_subset: str) -
             continue
 
     common_instances = list(set.intersection(*map(set, instances)))
-    common_instances = [i for i in common_instances
-                        if not (('b03' in i) and ('k02' in i))]
-    # common_instances = [i for i in common_instances]
+    # common_instances = [i for i in common_instances
+    #                     if not (('b03' in i) and ('k02' in i))]
+    common_instances = [i for i in common_instances]
 
 
     return common_instances
@@ -43,7 +43,7 @@ def plot_pareto_fronts(output_dir: str, inst_set: str, inst_subset: str, instanc
     colors = px.colors.qualitative.Plotly
     color_count = 0
 
-    total_rows = len(instances) // 2 + len(instances) % 2
+    total_rows = max(1,len(instances) // 2 + len(instances) % 2)
 
     fig = make_subplots(rows=total_rows, cols=2, subplot_titles=instances)
     for alg in os.listdir(output_dir):
@@ -67,7 +67,7 @@ def plot_pareto_fronts(output_dir: str, inst_set: str, inst_subset: str, instanc
             result_table.sort_values(by=['MaxMin', 'MaxSum'], inplace=True)
             is_special_alg = alg in ['NSGA2', 'SPEA2']
             marker_style = dict(
-                color=colors[color_count],
+                color=colors[color_count%10],
                 symbol='x' if is_special_alg else 'circle',
                 size=6 if is_special_alg else 10
             )
@@ -133,6 +133,8 @@ def calculate_performance_indicators(result_dir, inst_set, inst_subset, instance
 
             # Indicators
             indicators = pd.DataFrame(columns=['HV', 'SC', 'eps'])
+            ind = HV(ref_point=np.array([0.0, 0.0]))
+            max_hypervolume = ind((-1) * reference_pareto_front)
 
             # Loop all the executions run during the experiments (1 csv per execution)
             executions = os.listdir(inst_path)
@@ -143,9 +145,9 @@ def calculate_performance_indicators(result_dir, inst_set, inst_subset, instance
                 current_pareto_front = solutions[['MaxSum', 'MaxMin']].to_numpy()
 
                 # Calculate hypervolume
-                ind = HV(ref_point=np.array([0.0, 0.0]))
+
                 # *(-1) since it's a maximization problem
-                hypervolume = ind((-1) * current_pareto_front)
+                hypervolume = ind((-1) * current_pareto_front)/ max_hypervolume
 
                 # Calculate Set Coverage
                 sc = set_coverage(current_pareto_front, reference_pareto_front)
@@ -158,22 +160,23 @@ def calculate_performance_indicators(result_dir, inst_set, inst_subset, instance
                                                              'SC': [sc],
                                                              'eps': [eps]}))
 
-            # Get table (csv) containing the exection time of all the experiments
-            if 'add_data.csv' in executions:
-                evaluation_table = pd.read_csv(os.path.join(inst_path, 'add_data.csv'))
-            elif 'ex_times.csv' in executions:
-                evaluation_table = pd.read_csv(os.path.join(inst_path, 'ex_times.csv'))
-            evaluation_table = evaluation_table.join(indicators.round(2).reset_index(drop=True))
-
-            # Save summary
+            # # Get table (csv) containing the exection time of all the experiments
+            # if 'add_data.csv' in executions:
+            #     evaluation_table = pd.read_csv(os.path.join(inst_path, 'add_data.csv'))
+            # elif 'ex_times.csv' in executions:
+            #     evaluation_table = pd.read_csv(os.path.join(inst_path, 'ex_times.csv'))
+            # evaluation_table = evaluation_table.join(indicators.round(2).reset_index(drop=True))
+            #
+            # # Save summary
             summary = pd.DataFrame({'alg_config': [alg]}) \
-                .join(pd.DataFrame(evaluation_table.mean()).transpose())
-            summary.drop(columns=['seed'], inplace=True)
+                .join(pd.DataFrame((indicators.round(2).reset_index(drop=True)).mean()).transpose())
+            # summary.drop(columns=['seed'], inplace=True)
             general_indicators = general_indicators._append(
                 pd.DataFrame({'inst': [inst]}).join(summary))
 
+
     # convert all columns that should be numeric
-    for col in ["time", "HV", "SC", "eps", "all_sols", "nd_sols"]:
+    for col in ["HV", "SC", "eps"]:
         general_indicators[col] = pd.to_numeric(general_indicators[col], errors="coerce")
     # Save table with indicator values for each instance-algorithm
     general_indicators['eps'].replace([np.inf, -np.inf], np.nan, inplace=True)

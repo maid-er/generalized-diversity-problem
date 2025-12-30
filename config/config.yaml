@@ -1,13 +1,14 @@
-- experiments: 1  # Number of experiments/executions per instance
+- experiments: 1 # Number of experiments/executions per instance
   iterations: 500  # Number of constructions
   pre_iterations: 25
   # Construction stage
   mo_approach_C: 'AltBwS'  # AltInS, or AltBwS (default) // for a single objective approach MaxSum or MaxMin
   parameters:
     distribution: 'Geometric'  # Triangular or Geometric
-    beta: 0.3781  # From 0 to 1 // if -1, random selection for each construction
+    beta: 0.5  # From 0 to 1 // if -1, random selection for each construction
     threshold: 0.5619
     std_multiplier: 2.10
+    delta: 1.05
   # Local Improvement stage
   mo_approach_LS: 'Dom'  # Dom, or Alt (PR?¿?¿) // for a single objective approach MaxSum or MaxMin
   strategy: 'VND'  # Standard, or VND

@@ -32,7 +32,8 @@ class OutputHandler:
 
         return fig
 
-    def save(self, table: pd.DataFrame, add_data: dict, params: str, instance: str, seed):
+    def save(self, table: pd.DataFrame, all_sols, c_sols, add_data: dict,
+             figure: go.Figure, params: str, instance: str, seed):
         '''
         This function saves the solution DataFrame as a CSV and the Figure as an HTML file in a
         specified directory structure that contains the instance name and execution number as ID.
@@ -46,7 +47,7 @@ class OutputHandler:
         instance_path = instance.split(os.sep)[1:]
         instance_path = [s.replace('.txt', '') for s in instance_path]
         output_path = os.path.join('output',
-                                   f'TEST{params}',
+                                   f'NoVNS{params}',
                                    *instance_path)
 
         os.makedirs(output_path, exist_ok=True)

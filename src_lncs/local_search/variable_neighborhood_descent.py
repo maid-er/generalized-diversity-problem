@@ -1,7 +1,6 @@
 '''
 Auxiliar function to apply Variable Neighborhood Descent.
 '''
-from constructives.biased_randomized import create_candidate_list, update_candidate_list
 from local_search import best_improve as bes
 from local_search import fast_improve as fas
 from local_search import first_improve as fis
@@ -41,12 +40,15 @@ def improve(sol: Solution, inst, config: dict):
     count = 0
     abs_count = 0
     improve = True
-
-    cl = create_candidate_list(sol, inst)
     # Run improvement loop while solution is being improved in any neighborhood
     while (improve or nb <= len(neighborhoods)) and abs_count < max_it:
+        objective = abs_count % 2  # 0: MaxSum, 1: MaxMin (for Alt approach)
         # Check if a single objective approach is selected
         mo_approach = config.get('mo_approach_LS')
+        if mo_approach == 'MaxSum':
+            objective = 0
+        elif mo_approach == 'MaxMin':
+            objective = 1
 
         # Get exchange list of current neighborhood [n_nodes_out, n_nodes_in]
         switch = neighborhoods[nb]
@@ -57,14 +59,7 @@ def improve(sol: Solution, inst, config: dict):
         elif ls_scheme == 'Fast':
             improve = fas.try_improvement(sol, switch)
         elif ls_scheme == 'First':
-            improve, to_add, to_remove = fis.try_improvement(sol, inst, cl, mo_approach, switch)
-            for add in to_add:
-                sol.add_to_solution(inst, add)
-                update_candidate_list(sol, inst, cl, add, -1)
-            for remove in to_remove:
-                sol.remove_from_solution(inst, remove)
-                update_candidate_list(sol, inst, cl, -1, remove)
-
+            improve = fis.try_improvement(sol, inst, objective, mo_approach, switch)
         if improve:
             #print('Improved solution.')
             nb = 1  # Go back to first neighborhood
@@ -73,6 +68,5 @@ def improve(sol: Solution, inst, config: dict):
             count += 1
             nb += 1  # Change to next neighborhood
         abs_count += 1
-
-    # print('Local search stopped with %s total IT and %s IT with no improvements.',
-    #       abs_count, count)
+    #print('Local search stopped with %s total IT and %s IT with no improvements.',
+          #abs_count, count)

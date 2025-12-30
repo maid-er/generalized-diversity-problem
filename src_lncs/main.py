@@ -21,19 +21,21 @@ def run_experiment(args):
 if __name__ == "__main__":
     print("Initializing diversity maximization algorithm...")
 
-    path = os.path.join('instances', 'Test_set', 'test2')
+    path = os.path.join('instances', 'Test_set', 'GKD-c')
 
     tasks = []
     for config in config_list:
 
-        rng = random.Random(7357)
-        execution.execute_directory(path, config, rng, 7357)
-    #
-    #     for n in range(config.get('experiments')):
-    #         seed = 7357 + n
-    #         tasks.append((path, config, seed))
-    #
-    # with ProcessPoolExecutor() as executor:
-    #     executor.map(run_experiment, tasks)
+        # rng = random.Random(7357)
+        # execution.execute_directory(path, config, rng, 7357)
+        #
+        betas = [-1, 0.25, 0.75]
+        # modes = ["Alt-Btw-3FO", "Alt-Btw", "Alt-Btw-LC"]
+        modes = [[0.5, "Alt-Btw-LC"]]
+        for mode in modes:
+            config["parameters"]["beta"] = mode[0]
+            config["mo_approach_C"] = mode[1]
+            rng = random.Random(7357)
+            execution.execute_directory(path, config, rng, 7357)
 
     # os.remove(os.path.join('temp', 'execution.txt'))

@@ -2,8 +2,8 @@
 import datetime
 import itertools
 import os
+import random
 
-import numpy as np
 import pandas as pd
 
 from algorithms import grasp
@@ -16,10 +16,11 @@ import matplotlib.pyplot  as plt
 from structure import dominance
 from collections import defaultdict
 import statistics
-from pymoo.indicators.hv import HV
+from concurrent.futures import ProcessPoolExecutor
+
 logging = load_logger(__name__)
 
-def execute_instance(path: str, config: dict, results: OutputHandler, rng, seed) -> float:
+def execute_instance(path: str, config: dict, rng, seed) -> float:
     '''
     Reads an instance, iterates to find solutions using GRASP algorithm, evaluates the solutions,
     identifies non-dominated solutions, computes execution time, and saves results.
@@ -36,8 +37,11 @@ def execute_instance(path: str, config: dict, results: OutputHandler, rng, seed)
       (float): returns the total execution time in seconds.
     '''
     # Initialize list and table to save solutions
+    all_c_solutions = []  # Solutions from construction stage
     all_solutions = []  # Final solutions after the LS stage
-    result_table = []
+    c_result_table = pd.DataFrame(columns=['Solution', 'MaxSum', 'MaxMin', 'Cost', 'Capacity', 'Time'])
+    result_table = pd.DataFrame(columns=['Solution', 'MaxSum', 'MaxMin', 'Cost', 'Capacity', 'Time'])
+
     print('Solving instance %s:', path)
     # Read instance
     inst = instance.read_instance(path)
@@ -45,96 +49,57 @@ def execute_instance(path: str, config: dict, results: OutputHandler, rng, seed)
     max_time = config.get('execution_limits').get('max_time')
     start = datetime.datetime.now()
     # Construct a solution for the IT defined in config
+    policies = ["C"]
     results_dict = []
-    policies = ["D"]
-    cost_focus = [0,1,2,3]
-    cost_weight = [0,1,2,3,4,5]
-    # cost_focus = [0, 1]
-    # cost_weight = [0]
+    cost_focus = [0, 1]
+    cost_weight = [0]
 
-    combinations_focus = list(itertools.product(policies, ["focus"], cost_focus))
-    combinations_weight = list(itertools.product(policies, ["weight"], cost_weight))
-    combinations = combinations_focus + combinations_weight
+    if config["mo_approach_C"] == "Alt-Btw-3FO":
+        combinations_focus = list(itertools.product(policies, ["focus"], cost_focus))
+        combinations_weight = list(itertools.product(policies, ["weight"], cost_weight))
+        combinations = combinations_focus + combinations_weight
+    elif config["mo_approach_C"] == "Alt-Btw-LC":
+        combinations_weight = list(itertools.product(policies, ["weight"], cost_weight))
+        combinations = combinations_weight
+    else:
+        combinations_focus = list(itertools.product(policies, ["focus"], cost_focus))
+        combinations = combinations_focus
 
     combinations_dict_alpha = {comb: [0, 1] for comb in combinations} # initial value for alpha interval
 
-    execute_combinations(config, True, combinations, combinations_dict_alpha, max_time, start,
-                             inst, results_dict, all_solutions, result_table, rng)
-
-    post_combinations, pf_idx = scan_results(combinations, results_dict, start, config)
-
-    # Eliminate the rest of the all_solutions to save ram
-    # results_dict = [results_dict[i] for i in pf_idx if results_dict[i]["combination"] in post_combinations]
-
-    valid_indices = [
-        i for i in pf_idx
-        if results_dict[i]["combination"] in post_combinations
-    ]
-
-    results_dict = [results_dict[i] for i in valid_indices]
-    # result_table = [result_table[i] for i in valid_indices]
-    # all_solutions = [all_solutions[i] for i in valid_indices]
-
-    #Update the alpha interval for the combinations
-
-    results_alpha = analyze_alpha(results_dict)
-    print(results_alpha)
-
-    if config.get("parameters").get("std_multiplier") != "All":
-
-        for key, value in results_alpha.items():
-
-            combinations_dict_alpha[key] = [ max(0, value["mean"] - config.get("parameters").get("std_multiplier") * value["std"]), min(1, value["mean"] + config.get("parameters").get("std_multiplier") * value["std"] )]
-
-        # print(combinations_dict_alpha)
+    execute_combinations(config, False, combinations, combinations_dict_alpha, max_time, start,
+                             inst, results_dict, all_c_solutions, all_solutions, c_result_table, result_table, rng)
 
 
-    start = datetime.datetime.now()
-
-    print("Start With VND")
-    execute_combinations(config, False, post_combinations, combinations_dict_alpha, max_time, start,
-                         inst, results_dict, all_solutions, result_table, rng)
-
-    # Find non-dominated solutions among all constructions
-
-    # 3. Create the DataFrame once outside the loop
-    results_data = pd.DataFrame(result_table, columns=[
-        'Nodes', 'MaxSum', 'MaxMin', 'Cost', 'Capacity', 'Time'
-    ])
-
-    # 4. Proceed with dominance filtering
     is_non_dominated = dominance.get_nondominated_solutions(all_solutions)
-    dom_result_table = results_data[is_non_dominated].reset_index(drop=True)
+    dom_result_table = result_table[is_non_dominated].reset_index(drop=True)
 
     # Compute execution time
     elapsed = datetime.datetime.now() - start
     secs = round(elapsed.total_seconds(), 2)
-    print('Execution time: %s', secs)
-
-    current_pareto_front = dom_result_table[['MaxSum', 'MaxMin']].to_numpy()
-    ind = HV(ref_point=np.array([0.0, 0.0]))
-    hypervolume = ind((-1) * current_pareto_front)
-    print(hypervolume)
-
+    # print('Execution time: %s', secs)
     add_data = {
         'time': [secs],
         'all_sols': [len(all_solutions)],
         'nd_sols': [len(dom_result_table)]
     }
 
+    results = OutputHandler()
+
     # Build and plot Pareto Front
     fig = results.pareto_front(dom_result_table, path)
     # Save table and plot with results
-    algorithm_params = (f'IT{config.get("iterations")}'
-                        f'_b{config.get("parameters").get("beta")}'
+    algorithm_params = (f'_b{config.get("parameters").get("beta")}'
+                        f'IT{config.get("iterations")}'
                         f'_{config.get("scheme")[:3]}'
+                        f'_{config.get("mo_approach_C")}'
                         # f'_nb{len(config.get("neighborhoods"))}'
                         ).replace('.', '')
-    results.save(dom_result_table, add_data, algorithm_params, path, seed)
+    results.save(dom_result_table, result_table, c_result_table, add_data, fig, algorithm_params, path, seed)
 
 
 def execute_combinations(config, preprocess, combinations,combinations_dict_alpha, max_time, start,
-                         inst, results_dict, all_solutions, result_table, rng):
+                         inst, results_dict, all_c_solutions, all_solutions, c_result_table, result_table, rng):
 
     max_iterations = config.get('iterations') if not preprocess else config.get('pre_iterations') * len(combinations)
     for i in range(max_iterations):
@@ -144,50 +109,62 @@ def execute_combinations(config, preprocess, combinations,combinations_dict_alph
         if not preprocess:
             # If time is exceeded stop execution
             if datetime.timedelta(seconds=max_time) < datetime.datetime.now() - start:
-                print('Maximum allowed execution time is exceeded. Total IT: %s', i)
+                # print('Maximum allowed execution time is exceeded. Total IT: %s', i)
                 break
 
         # Run B-GRASP-VND
         # print(f'Finding solution #{i+1}')
-        solution_list = grasp.execute(inst, config, preprocess, combination, combinations_dict_alpha, i, results_dict, start, rng)
+        c_sol_list, solution_list = grasp.execute(inst, config, preprocess, combination, combinations_dict_alpha, i, results_dict, start, rng)
         # Save solution set found in this IT
+        all_c_solutions += c_sol_list
         all_solutions += solution_list
 
         # Add new solutions to result_table
         # for sol in solution_list:
+        for c_sol in c_sol_list:
+            selected_nodes = ' - '.join([str(s) for s in sorted(c_sol.solution_set)])
+            c_result_table.loc[len(c_result_table)] = [selected_nodes] + [ round(c_sol.of_MaxSum,3),
+                                                                      round(c_sol.of_MaxMin,3),
+                                                                      c_sol.total_cost,
+                                                                      c_sol.total_capacity,
+                                                                        c_sol.time]
 
         # Add new solutions to result_table
         for sol in solution_list:
             selected_nodes = ' - '.join([str(s) for s in sorted(sol.solution_set)])
-            # 2. Append a simple list or dict to your collector
-            result_table.append([
-                selected_nodes,
-                round(sol.of_MaxSum, 3),
-                round(sol.of_MaxMin, 3),
-                sol.total_cost,
-                sol.total_capacity,
-                sol.time
-            ])
+            result_table.loc[len(result_table)] = [selected_nodes] + [round(sol.of_MaxSum,3),
+                                                                      round(sol.of_MaxMin,3),
+                                                                      sol.total_cost,
+                                                                      sol.total_capacity,
+                                                                      sol.time]
+
 
 def execute_directory(directory: str, config: dict, rng, seed):
-    '''
-    Scans a directory for text files, executes instances with specified configurations, and saves
-    the results in a CSV file.
-
-    Args:
-      directory (str): represents the path to the directory where the files (instances) are located.
-      config (dict): contains the configuration settings for the algorithm.
-    '''
     with os.scandir(directory) as files:
-        ficheros = [file.name for file in files if file.is_file() and file.name.endswith(".txt")]
+        ficheros = [
+            file.name for file in files
+            if file.is_file() and file.name.endswith(".txt")
+        ]
+
+    tasks = [
+        (directory, f, config, seed)
+        for f in ficheros
+    ]
 
     results = OutputHandler()
 
-    for f in ficheros:
-        path = os.path.join(directory, f)
-        execute_instance(path, config, results, rng, seed)
+    with ProcessPoolExecutor(max_workers=4) as executor:
+        executor.map(_run_file, tasks)
 
 
+def _run_file(args):
+    directory, filename, config, seed = args
+    rng = random.Random(seed)
+
+    path = os.path.join(directory, filename)
+
+    # execute_instance must RETURN something
+    return execute_instance(path, config, rng, seed)
 
 def plot_solutions(results_dict, color_map):
 
@@ -230,32 +207,20 @@ def pareto_front(points):
             front.append(i)
     return front
 
-def pareto_front(points):
-    front = []
-    for i, (x_i, y_i) in enumerate(points):
-        dominated = False
-        for j, (x_j, y_j) in enumerate(points):
-            if (x_j >= x_i and y_j >= y_i) and (x_j > x_i or y_j > y_i):
-                dominated = True
-                break
-        if not dominated:
-            front.append(i)
-    return front
 
-def pareto_delta_front(points, delta:float):
-    front = []
-    for i, (x_i, y_i) in enumerate(points):
-        dominated = False
-        for j, (x_j, y_j) in enumerate(points):
-            if (x_j >= x_i * delta and y_j >= y_i * delta ) and (x_j  > x_i * delta or y_j > y_i * delta ):
-                dominated = True
-                break
-        if not dominated:
-            front.append(i)
-    return front
+def compute_global_pareto_stats(results_dict):
 
-
-def compute_global_pareto_stats(results_dict, config):
+    def pareto_front(points):
+        front = []
+        for i, (x_i, y_i) in enumerate(points):
+            dominated = False
+            for j, (x_j, y_j) in enumerate(points):
+                if (x_j >= x_i and y_j >= y_i) and (x_j > x_i or y_j > y_i):
+                    dominated = True
+                    break
+            if not dominated:
+                front.append(i)
+        return front
 
     # Gather all points
     all_points = []
@@ -268,7 +233,7 @@ def compute_global_pareto_stats(results_dict, config):
         all_combos.append(combo)
 
     # Compute global Pareto front
-    global_pf_idx = set(pareto_delta_front(all_points, delta= config.get("parameters").get("delta")))
+    global_pf_idx = set(pareto_front(all_points))
     total_pf = len(global_pf_idx)
 
     # Prepare stats
@@ -293,7 +258,6 @@ def analyze_alpha(pareto_combinations):
     for d in pareto_combinations:
         grouped[d["combination"]].append(d["alpha"])
 
-
     results = {
         combination: {
             "mean": statistics.mean(values),
@@ -303,7 +267,7 @@ def analyze_alpha(pareto_combinations):
     }
     return results
 
-def scan_results(combinations, results_dict, start, config):
+def scan_results(combinations, results_dict, start, threshold):
     # Number of combinations
     n = len(combinations)
 
@@ -315,16 +279,16 @@ def scan_results(combinations, results_dict, start, config):
 
     # plot_solutions(results_dict, color_map)
 
-    stats, pf_idx, total_pf = compute_global_pareto_stats(results_dict, config)
+    stats, pf_idx, total_pf = compute_global_pareto_stats(results_dict)
 
-    print(f"Global PF size = {total_pf}")
+    # print(f"Global PF size = {total_pf}")
 
-    for combo, s in stats.items():
-        print(f"{combo}: {s['pareto']} / {total_pf}  → {s['percentage']:.1f}%")
+    # for combo, s in stats.items():
+    #     print(f"{combo}: {s['pareto']} / {total_pf}  → {s['percentage']:.1f}%")
 
     post_combinations = []
     for combo, s in stats.items():
-        if s['percentage'] > config.get("parameters").get("threshold"):
+        if s['percentage'] > threshold:
             post_combinations.append(combo)
 
     elapsed = datetime.datetime.now() - start

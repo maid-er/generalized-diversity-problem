@@ -44,9 +44,9 @@ def construct(inst: dict, config: dict, combination: tuple, alpha: float, start,
     # sol.comprobate()
     cl = create_candidate_list(sol, inst, u)
 
-
-    while len(cl) > 0:
-        # sol.comprobate(inst)
+    objective = 0
+    while sol.satisfies_cost(inst) and len(cl) > 0:
+        # sol.comprobate()
 
         # Filter only nodes that provide a feasible solution
         cl = [c for c in cl if sol.satisfies_cost(inst,[c[2]])]
@@ -54,12 +54,16 @@ def construct(inst: dict, config: dict, combination: tuple, alpha: float, start,
             break
 
         if combination[1] == "focus":
-            focus_objective = combination[2] if combination[2] < 2 else combination[2] + 1
-            cl.sort(key=lambda row: -row[focus_objective])
-
+            if config["mo_approach_C"] == "Alt-Ins":
+                cl.sort(key=lambda row: -row[objective%2])
+                objective += 1
+            else:
+                focus_objective = combination[2] if combination[2] < 2 else combination[2] + 1
+                cl.sort(key=lambda row: -row[focus_objective])
+                objective += 1
         else:
-            focus_objectives = [[0, 1], [0, 3], [0, 4], [1, 3], [1, 4], [3, 4]]
-            # focus_objectives = [[0, 1]]
+            # focus_objectives = [[0, 1], [0, 3], [0, 4], [1, 3], [1, 4], [3, 4]]
+            focus_objectives = [[0, 1]]
             selected_focus = focus_objectives[combination[2]]
             max_random_index_0 = max([c[selected_focus[0]] for c in cl])
             max_random_index_1 = max([c[selected_focus[1]] for c in cl])
@@ -138,10 +142,11 @@ def deconstruct(inst: dict, config: dict, combination: tuple, alpha: float, star
     for u in range(n):
         sol.add_to_solution(inst, u)
     cl = create_candidate_list(sol, inst)
-    while len(cl) > 0:
-        # sol.comprobate(inst)
+    while sol.satisfies_capacity(inst) and len(cl) > 0:
+        # sol.comprobate()
+
         # Filter only nodes that provide a feasible solution
-        cl = [c for c in cl if sol.satisfies_capacity(inst, u=-1, v=[c[2]])]
+        cl = [c for c in cl if sol.satisfies_capacity(inst, [c[2]])]
         if len(cl) == 0:  # If the cost won't be met with any new element
             break
 
@@ -180,12 +185,11 @@ def deconstruct(inst: dict, config: dict, combination: tuple, alpha: float, star
         update_candidate_list(sol, inst, cl, removed=cSel[2])
 
         # If solution is feasible, save it in the solution list
-        if sol.satisfies_cost(inst):
+        if sol.satisfies_cost(inst ):
             time_solution = datetime.datetime.now() - start
             sol.time = round(time_solution.total_seconds(), 2)
-            sol.calculate_maxMin(inst)
             solution_list.append(sol.clone())
-
+            sol.calculate_maxMin(inst)
 
     # Check if any feasible solution is constructed
     if len(solution_list) == 0:
@@ -216,7 +220,7 @@ def create_candidate_list(sol: Solution, instance, first: int = -1) -> list:
     cl = []
     for c in range(n):
         if c != first:
-            d_sum = sol.distance_sum_to_solution(instance, c)
+            d_sum = sol.distance_sum_to_solution(instance, c )
             d_min = sol.minimum_distance_to_solution(instance, c)
             cl.append([d_sum, d_min, c, instance['c'][c], -instance['a'][c]])
 
@@ -247,24 +251,16 @@ def update_candidate_list(sol: Solution, instance, cl: list, added: int = -1, re
         c = cl[i]
 
         if added != -1:
-            if c[2] == added:
-                c[0] = sol.distance_sum_to_solution(instance, c[2])
-                c[1] = sol.minimum_distance_to_solution(instance, c[2])
-            else:
-                c_to_added_distance = matrix[c[2]]
+            c_to_added_distance = matrix[c[2]]
 
-                # Update MaxSum objective value
-                c[0] += c_to_added_distance
-                # Update MaxMin objective value
-                # If the distance to the added is lower than current MaxMin
-                if c_to_added_distance < c[1]:
-                    c[1] = c_to_added_distance
+            # Update MaxSum objective value
+            c[0] += c_to_added_distance
+            # Update MaxMin objective value
+            # If the distance to the added is lower than current MaxMin
+            if c_to_added_distance < c[1]:
+                c[1] = c_to_added_distance
 
         if removed != -1:
-            if c[2] == removed:
-                c[0] = sol.distance_sum_to_solution(instance, c[2])
-                c[1] = sol.minimum_distance_to_solution(instance, c[2])
-
             c_to_removed_distance = matrix[c[2]]
 
             # Update MaxSum objective value

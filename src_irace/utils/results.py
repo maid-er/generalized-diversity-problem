@@ -32,7 +32,7 @@ class OutputHandler:
 
         return fig
 
-    def save(self, table: pd.DataFrame, all_sols, c_sols, add_data: dict,
+    def save(self, table: pd.DataFrame, all_sols, add_data: dict,
              figure: go.Figure, params: str, instance: str):
         '''
         This function saves the solution DataFrame as a CSV and the Figure as an HTML file in a
@@ -52,9 +52,6 @@ class OutputHandler:
 
         os.makedirs(output_path, exist_ok=True)
 
-        # c_sols.to_csv(os.path.join(output_path,
-        #                           f'resultsConst_{self.execution_n}.csv'),
-        #              index=False)
 
         # all_sols.to_csv(os.path.join(output_path,
         #                           f'resultsAll_{self.execution_n}.csv'),

@@ -40,26 +40,20 @@ def execute(inst: dict, config: dict, preprocess:bool, combination: tuple, combi
     # Construction phase (Biased GRASP)
     if combination[0] == "C":
         solution_list, combination = biased_randomized.construct(inst, config, combination, alpha, start, rng)
-    else:
-        solution_list, combination = biased_randomized.deconstruct(inst, config, combination, alpha, start, rng)
     # print(len(solution_list))
+    c_sol_list = [s.clone() for s in solution_list]
     # Local Search phase
     ls_sols = [0]
     if len(solution_list) > 1:
         ls_sols = [0, -1]
 
-    if preprocess:
-        for solution_pre in solution_list:
-            solution_pre_clone = solution_pre.clone()
 
-            results_dict.append({"solution": solution_pre_clone, "iteration": iteration, "combination": combination, "alpha": alpha, "ls": False})
+    for sol in [solution_list[i] for i in ls_sols]:  # Apply LS only to 1st and last solutions
+        if len(sol.solution_set) > 0:  # Ensure a solution is constructed
+            sol_copy = sol.clone()
+            variable_neighborhood_descent.improve(sol_copy, inst, config)
+            time_solution = datetime.datetime.now() - start
+            sol.time = round(time_solution.total_seconds(), 2)
 
-    else:
-        for sol in [solution_list[i] for i in ls_sols]:  # Apply LS only to 1st and last solutions
-            if len(sol.solution_set) > 0:  # Ensure a solution is constructed
-                variable_neighborhood_descent.improve(sol, inst, config)
-                time_solution = datetime.datetime.now() - start
-                sol.time = round(time_solution.total_seconds(), 2)
-
-    return solution_list
+    return c_sol_list, solution_list
 

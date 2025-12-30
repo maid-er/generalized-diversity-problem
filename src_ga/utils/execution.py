@@ -23,7 +23,7 @@ from utils.logger import load_logger
 logging = load_logger(__name__)
 
 
-def execute_instance(path: str, results: OutputHandler) -> float:
+def execute_instance(path: str, results: OutputHandler, seed) -> float:
     '''
     Reads an instance, iterates to find solutions using GRASP algorithm, evaluates the solutions,
     identifies non-dominated solutions, computes execution time, and saves results.
@@ -88,7 +88,7 @@ def execute_instance(path: str, results: OutputHandler) -> float:
         res = minimize(problem,
                        algorithm,
                        termination,
-                       seed=1,
+                       seed=seed,
                        save_history=True,
                        verbose=True)
 
@@ -124,7 +124,7 @@ def execute_instance(path: str, results: OutputHandler) -> float:
         results.save(result_table, secs, [], '', path, algo)
 
 
-def execute_directory(directory: str):
+def execute_directory(directory: str, seed):
     '''
     Scans a directory for text files, executes instances with specified configurations, and saves
     the results in a CSV file.
@@ -140,4 +140,4 @@ def execute_directory(directory: str):
 
     for f in ficheros:
         path = os.path.join(directory, f)
-        execute_instance(path, results)
+        execute_instance(path, results, seed)

@@ -13,6 +13,7 @@ if __name__ == '__main__':
     path = os.path.join('instances', 'GDP', 'GKD-b_n50')
 
     for n in range(1):
-        execution.execute_directory(path)
+        seed = 7357 + n
+        execution.execute_directory(path, seed)
 
     os.remove(os.path.join('temp', 'execution.txt'))
