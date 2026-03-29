@@ -1,22 +1,14 @@
 @echo off
-:: irace passes arguments in this order:
-:: %1 = Configuration ID
-:: %2 = Instance ID
-:: %3 = Seed
-:: %4 = Instance File Path
-:: %5... = The parameters (e.g., --beta 0.5 --threshold 10)
+:: irace arguments:
+:: %1 = Config ID, %2 = Instance ID, %3 = Seed, %4 = Instance Path, %5... = Parameters
 
-:: Capture the fixed arguments we need
 set SEED=%3
 set INSTANCE=%4
 
-:: Extract all arguments starting from %5 (the parameters)
-:: This logic shifts the first 4 arguments away so we capture the rest
-shift
-shift
-shift
-shift
+:: Store the configuration parameters (everything from %5 onwards)
+:: We use a trick to capture the rest of the command line
+for /f "tokens=4,*" %%a in ("%*") do set PARAMS=%%b
 
 :: Run the python script
-:: We manually pass --seed and --instance because irace passed them as positional args
-.\venv\Scripts\python.exe src_irace\main.py --seed %SEED% --instance %INSTANCE% %1 %2 %3 %4 %5 %6 %7 %8 %9
+:: %PARAMS% now contains "--std_interval X --beta Y --threshold Z --delta W"
+.\venv\Scripts\python.exe src_irace\main.py --seed %SEED% --instance %INSTANCE% %PARAMS%

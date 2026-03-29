@@ -11,7 +11,7 @@ class OutputHandler:
         '''Initialize OutputHandler'''
         self.execution_n = -1
 
-        self._get_execution_number()
+        # self._get_execution_number()
 
     def pareto_front(self, table: pd.DataFrame, instance: str) -> go.Figure:
         '''
@@ -32,7 +32,7 @@ class OutputHandler:
 
         return fig
 
-    def save(self, table: pd.DataFrame, secs: float, figure: go.Figure, params: str, instance: str, algo: str):
+    def save(self, table: pd.DataFrame, secs: float, figure: go.Figure, params: str, instance: str, algo: str, seed: int):
         '''
         This function saves the solution DataFrame as a CSV and the Figure as an HTML file in a
         specified directory structure that contains the instance name and execution number as ID.
@@ -52,7 +52,7 @@ class OutputHandler:
         os.makedirs(output_path, exist_ok=True)
 
         table.to_csv(os.path.join(output_path,
-                                  f'ref_results_{self.execution_n}.csv'),
+                                  f'ref_results_{seed}.csv'),
                      index=False)
 
         self._save_execution_time(secs, output_path)

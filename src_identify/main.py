@@ -21,7 +21,7 @@ def run_experiment(args):
 if __name__ == "__main__":
     print("Initializing diversity maximization algorithm...")
 
-    path = os.path.join('instances', 'Test_set', 'test2')
+    path = os.path.join('instances', 'GDP', 'GKD-b_n150')
 
     tasks = []
     for config in config_list:

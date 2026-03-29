@@ -188,7 +188,7 @@ class Solution:
                     min_d = d
         return round(min_d, 2)
 
-    def minimum_distance_to_solution_bound(self, instance, bound,  u: int, without: list = [-1]) -> float:
+    def minimum_distance_to_solution_bound(self, instance, bound: float,  u: int, without: list = [-1]) -> float:
         '''Calculates the minimum distance from a given node to the rest of the nodes in the
         solution graph, excluding the node specified with the optional input `without`.
 

@@ -9,6 +9,7 @@ result_dir = 'outputestaru'
 file_path = os.path.join(result_dir, 'indicators.csv')
 
 data = pd.read_csv(file_path)
+data = data[data['alg_config'] != "Gurobi"]
 # Ignore instances with no solutions
 # data['Non-dominated solution rate [%]'] = data['nd_sols'] / data['all_sols'] * 100
 # data = data[data['Non-dominated solution rate [%]'] != 100]
@@ -22,6 +23,27 @@ data = pd.read_csv(file_path)
 
 # fig = px.histogram(data, x='HV', color='alg_config')
 # fig.show()
+#
+
+# import seaborn as sns
+# import matplotlib.pyplot as plt
+#
+# # Set a nice style
+# sns.set_theme(style="whitegrid")
+#
+# plt.figure(figsize=(10, 6))
+# ax = sns.boxplot(data=data, x='alg_config', y='HV', palette="Set2")
+#
+# # Customizing labels
+# plt.title('Hypervolume Distribution')
+# plt.xlabel('GRASP MO strategy: Construction_LocalSearch')
+# plt.ylabel('HV')
+#
+# # Save and show
+# plt.savefig('output/hypervolume.png', dpi=300)
+# plt.show()
+#
+#
 #
 # fig = px.box(data, x='alg_config', y='HV')
 # fig.update_xaxes(title_text='GRASP MO strategy: Construction_LocalSearch')
@@ -63,21 +85,56 @@ df_long = pd.melt(
     value_name='Value'
 )
 
-fig = px.box(
-    df_long,
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+is_special_alg = ['NSGA2', 'SPEA2', '[2] NSGA2', '[3] SPEA2']
+alg_order = sorted(
+    df_long['alg_config'].unique(),
+    key=lambda x: (any(s in x for s in is_special_alg), x)
+)
+# Set the visual style
+sns.set_theme(style="whitegrid")
+
+plt.figure(figsize=(12, 6))
+
+# Create the boxplot
+ax = sns.boxplot(
+    data=df_long,
     x='alg_config',
     y='Value',
-    color='Metric'
+    hue='Metric',
+    palette='muted',
+    order=alg_order
 )
 
-fig.update_xaxes(title_text='GRASP MO strategy: Construction_LocalSearch')
-fig.update_layout(
-    boxgap=0.1,        # space between boxes in same group (default ~0.3)
-    boxgroupgap=0    # space between alg_config groups
-)
+# Customizing the labels
+# plt.title('Performance Metrics by Algorithm Configuration', fontsize=15)
+plt.xlabel('Algorithm', fontsize=12)
+plt.ylabel('Value')
+plt.xticks(rotation=45) # Helps if alg_config names are long
 
-fig.write_html('output/all_metrics_single_plot.html')
-fig.show()
+# Save and Show
+plt.tight_layout()
+plt.savefig('output/all_metrics_seaborn.png', dpi=300)
+plt.show()
+
+
+# fig = px.box(
+#     df_long,
+#     x='alg_config',
+#     y='Value',
+#     color='Metric'
+# )
+#
+# fig.update_xaxes(title_text='GRASP MO strategy: Construction_LocalSearch')
+# fig.update_layout(
+#     boxgap=0.1,        # space between boxes in same group (default ~0.3)
+#     boxgroupgap=0    # space between alg_config groups
+# )
+#
+# fig.write_html('output/all_metrics_single_plot.html')
+# fig.show()
 
 # fig = px.box(data, x='alg_config', y='Non-dominated solution rate [%]')
 # fig.update_xaxes(title_text='GRASP MO strategy: Construction_LocalSearch')

@@ -1,5 +1,8 @@
 '''Main function'''
+from concurrent.futures import ProcessPoolExecutor
 import os
+import random
+random.seed(7357)
 
 from utils import execution
 from utils.logger import load_logger
@@ -7,13 +10,23 @@ from utils.logger import load_logger
 logging = load_logger(__name__)
 
 
-if __name__ == '__main__':
-    logging.info('Initializing diversity maximization with NSGA-II algorithm...')
+def run_experiment(args):
+    path, seed = args
+    execution.execute_directory(path, seed)
 
-    path = os.path.join('instances', 'GDP', 'GKD-b_n50')
 
-    for n in range(1):
+if __name__ == "__main__":
+    print("Initializing Genetic algorithms...")
+
+    path = os.path.join('instances', 'All_Instances', 'All_Instances')
+
+    tasks = []
+
+    for n in range(10):
         seed = 7357 + n
-        execution.execute_directory(path, seed)
+        tasks.append((path, seed))
 
-    os.remove(os.path.join('temp', 'execution.txt'))
+    with ProcessPoolExecutor() as executor:
+        executor.map(run_experiment, tasks)
+
+    # os.remove(os.path.join('temp', 'execution.txt'))

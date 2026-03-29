@@ -5,8 +5,8 @@ import utils
 
 
 '''Variables defined by the user'''
-SET = 'Test_set'
-SUBSET = 'test2'
+SET = 'GDP'
+SUBSET = 'GKD-b_n50'
 PLOT_PARETO_FRONTS = True
 
 
@@ -16,7 +16,7 @@ if __name__ == '__main__':
     random.seed(42)
 
     # Directory with results
-    result_dir = 'outputestaru'
+    result_dir = 'output_test'
 
     # Plot Pareto Fronts of all the analyzed algorithms and instances
     common_inst = utils.get_coincident_instances(result_dir, SET, SUBSET)

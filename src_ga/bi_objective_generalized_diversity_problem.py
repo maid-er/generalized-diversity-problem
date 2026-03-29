@@ -45,7 +45,7 @@ class BiObjectiveGeneralizedDiversityProblem(Problem):
 
                 # Max-Min: Minimum distance between selected elements
                 min_dist = np.min([self.dist_matrix[i, j]
-                                   for i in selected for j in selected if i != j])
+                                   for i in selected for j in selected if i < j])
                 f2.append(-min_dist)  # Multiply by -1 to maximize
             else:
                 # If fewer than 2 elements are selected, the solution is invalid

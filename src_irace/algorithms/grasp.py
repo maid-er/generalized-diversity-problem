@@ -10,8 +10,8 @@ from utils.logger import load_logger
 
 logging = load_logger(__name__)
 
-
-def execute(inst: dict, config: dict, preprocess:bool, combination: tuple, combinations_dict_alpha:dict, iteration: int, results_dict, start, rng) -> Solution:
+def execute(inst: dict, config: dict, preprocess:bool, combination: tuple, combinations_dict_alpha:dict,
+            iteration: int, results_dict, start, rng, complete_solution, cl_complete_solution) -> Solution:
     '''The function executes a GRASP algorithm with a specified number of iterations and a given
     beta value, selecting the best solution found during the iterations.
 
@@ -42,11 +42,11 @@ def execute(inst: dict, config: dict, preprocess:bool, combination: tuple, combi
     if combination[0] == "C":
         solution_list, combination = biased_randomized.construct(inst, config, combination, alpha, start, rng)
     else:
-        solution_list, combination = biased_randomized.deconstruct(inst, config, combination, alpha, start, rng)
-
+        solution_list, combination = biased_randomized.deconstruct(inst, config, combination, alpha, start, rng,
+                                                                   complete_solution, cl_complete_solution)
+    # print(len(solution_list))
     if len(solution_list) == 0:
-        return [], []
-    # c_sol_list = [s.clone() for s in solution_list]
+        return solution_list
     # Local Search phase
     ls_sols = [0]
     if len(solution_list) > 1:

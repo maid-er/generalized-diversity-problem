@@ -45,8 +45,8 @@ def construct(inst: dict, config: dict, combination: tuple, alpha: float, start,
     cl = create_candidate_list(sol, inst, u)
 
 
-    while sol.satisfies_cost(inst) and len(cl) > 0:
-        # sol.comprobate()
+    while len(cl) > 0:
+        # sol.comprobate(inst)
 
         # Filter only nodes that provide a feasible solution
         cl = [c for c in cl if sol.satisfies_cost(inst,[c[2]])]
@@ -97,16 +97,17 @@ def construct(inst: dict, config: dict, combination: tuple, alpha: float, start,
             solution_list.append(sol.clone())
 
     # Check if any feasible solution is constructed
-    if len(solution_list) == 0:
+    # if len(solution_list) == 0:
         # logging.error('No feasible solution reached in the construction phase.')
-        sol = Solution()
-        sol.of_MaxMin = 0
-        solution_list.append(sol)
+        # sol = Solution()
+        # sol.of_MaxMin = 0
+        # solution_list.append(sol)
 
     return solution_list, combination
 
 
-def deconstruct(inst: dict, config: dict, combination: tuple, alpha: float, start, rng) -> Solution:
+def deconstruct(inst: dict, config: dict, combination: tuple, alpha: float, start, rng,
+                complete_solution, cl_complete_solution) -> Solution:
     '''The function constructs a solution for a given instance using a Biased Greedy Randomized
     Adaptive Search (B-GRASP) procedure with specified parameters.
 
@@ -132,17 +133,12 @@ def deconstruct(inst: dict, config: dict, combination: tuple, alpha: float, star
 
     solution_list = []
 
-    sol = Solution()  # Initialize solution
-    n = inst['n']
-    # Generate initial solution set with all the nodes
-    for u in range(n):
-        sol.add_to_solution(inst, u)
-    cl = create_candidate_list(sol, inst)
-    while sol.satisfies_capacity(inst) and len(cl) > 0:
-        # sol.comprobate()
-
+    sol = complete_solution.clone()  # Initialize solution
+    cl = [inner[:] for inner in cl_complete_solution]
+    while len(cl) > 0:
+        # sol.comprobate(inst)
         # Filter only nodes that provide a feasible solution
-        cl = [c for c in cl if sol.satisfies_capacity(inst, [c[2]])]
+        cl = [c for c in cl if sol.satisfies_capacity(inst, u=-1, v=[c[2]])]
         if len(cl) == 0:  # If the cost won't be met with any new element
             break
 
@@ -181,18 +177,19 @@ def deconstruct(inst: dict, config: dict, combination: tuple, alpha: float, star
         update_candidate_list(sol, inst, cl, removed=cSel[2])
 
         # If solution is feasible, save it in the solution list
-        if sol.satisfies_cost(inst ):
+        if sol.satisfies_cost(inst):
             time_solution = datetime.datetime.now() - start
             sol.time = round(time_solution.total_seconds(), 2)
-            solution_list.append(sol.clone())
             sol.calculate_maxMin(inst)
+            solution_list.append(sol.clone())
+
 
     # Check if any feasible solution is constructed
-    if len(solution_list) == 0:
-        # logging.error('No feasible solution reached in the construction phase.')
-        sol = Solution()
-        sol.of_MaxMin = 0
-        solution_list.append(sol)
+    # if len(solution_list) == 0:
+    #     # logging.error('No feasible solution reached in the construction phase.')
+    #     sol = Solution()
+    #     sol.of_MaxMin = 0
+    #     solution_list.append(sol)
 
     return solution_list, combination
 
@@ -216,7 +213,7 @@ def create_candidate_list(sol: Solution, instance, first: int = -1) -> list:
     cl = []
     for c in range(n):
         if c != first:
-            d_sum = sol.distance_sum_to_solution(instance, c )
+            d_sum = sol.distance_sum_to_solution(instance, c)
             d_min = sol.minimum_distance_to_solution(instance, c)
             cl.append([d_sum, d_min, c, instance['c'][c], -instance['a'][c]])
 
@@ -247,16 +244,24 @@ def update_candidate_list(sol: Solution, instance, cl: list, added: int = -1, re
         c = cl[i]
 
         if added != -1:
-            c_to_added_distance = matrix[c[2]]
+            if c[2] == added:
+                c[0] = sol.distance_sum_to_solution(instance, c[2])
+                c[1] = sol.minimum_distance_to_solution(instance, c[2])
+            else:
+                c_to_added_distance = matrix[c[2]]
 
-            # Update MaxSum objective value
-            c[0] += c_to_added_distance
-            # Update MaxMin objective value
-            # If the distance to the added is lower than current MaxMin
-            if c_to_added_distance < c[1]:
-                c[1] = c_to_added_distance
+                # Update MaxSum objective value
+                c[0] += c_to_added_distance
+                # Update MaxMin objective value
+                # If the distance to the added is lower than current MaxMin
+                if c_to_added_distance < c[1]:
+                    c[1] = c_to_added_distance
 
         if removed != -1:
+            if c[2] == removed:
+                c[0] = sol.distance_sum_to_solution(instance, c[2])
+                c[1] = sol.minimum_distance_to_solution(instance, c[2])
+
             c_to_removed_distance = matrix[c[2]]
 
             # Update MaxSum objective value

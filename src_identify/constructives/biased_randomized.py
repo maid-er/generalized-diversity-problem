@@ -106,7 +106,8 @@ def construct(inst: dict, config: dict, combination: tuple, alpha: float, start,
     return solution_list, combination
 
 
-def deconstruct(inst: dict, config: dict, combination: tuple, alpha: float, start, rng) -> Solution:
+def deconstruct(inst: dict, config: dict, combination: tuple, alpha: float, start, rng,
+                complete_solution, cl_complete_solution) -> Solution:
     '''The function constructs a solution for a given instance using a Biased Greedy Randomized
     Adaptive Search (B-GRASP) procedure with specified parameters.
 
@@ -132,12 +133,8 @@ def deconstruct(inst: dict, config: dict, combination: tuple, alpha: float, star
 
     solution_list = []
 
-    sol = Solution()  # Initialize solution
-    n = inst['n']
-    # Generate initial solution set with all the nodes
-    for u in range(n):
-        sol.add_to_solution(inst, u)
-    cl = create_candidate_list(sol, inst)
+    sol = complete_solution.clone()  # Initialize solution
+    cl = [inner[:] for inner in cl_complete_solution]
     while len(cl) > 0:
         # sol.comprobate(inst)
         # Filter only nodes that provide a feasible solution

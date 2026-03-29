@@ -19,8 +19,8 @@ import random
 logging = load_logger(__name__)
 
 
-def try_improvement(sol: Solution, instance, objective: int, improvement_criteria: str,
-                    switch: list = [1, 1]) -> bool:
+def try_improvement(sol: Solution, instance, cl, improvement_criteria: str,
+                    switch: list = [1, 1]):
     '''Attempts to improve a solution by selecting and interchanging a selected element (node)
     with an unselected element. The improvement is obtained if the new solution dominates the
     previous solution.
@@ -41,7 +41,7 @@ def try_improvement(sol: Solution, instance, objective: int, improvement_criteri
       (bool): `True` if the improvement was successful (i.e., if the objective values are
     dominant and constraints are met with the interchange), and `False` otherwise.
     '''
-    selected, unselected = create_selected_unselected(instance, sol, objective)
+    selected, unselected = create_selected_unselected(instance, sol, cl)
 
     dmat = instance["d"]
     a = instance["a"]
@@ -77,44 +77,36 @@ def try_improvement(sol: Solution, instance, objective: int, improvement_criteri
                                    if min(get_all_pairwise_distances(instance,
                                                                      [u[2] for u
                                                                       in combo_u])) >= of_MaxMin]
+
+    unselected_combinations.sort(key=lambda combo: sum(u[4] for u in combo), reverse=True)
     # random.shuffle(unselected_combinations)
     # random.shuffle(selected_combinations)
+
+    # Before starting the inner loop
+    # Filter unselected nodes that are physically impossible to add
+
 
     if switch[0] == 0:
         for combo_u in unselected_combinations:
             nodes_u = [u[2] for u in combo_u]  # Get node IDs
             # If the constraints are not met with the new combo, try new exchange
-            if not (sol.satisfies_cost_a(instance, a, nodes_u, [])
-                    and sol.satisfies_capacity_c(instance, c, nodes_u, [])):
-                continue
-            # Pairwise distances between all the nodes in combo_u
-            pairwise_d_u = get_all_pairwise_distances(instance, nodes_u)
-            # Calculate d_sum_u for each node in combo_u removing the potential removed nodes in
-            # combo_s from solution
-            d_sum_u = sum([u[0] - sum([instance['d'][u[2]][s[2]] for s in []])
-                       for u in combo_u])+ sum(pairwise_d_u)
-            # Calculate d_min_u for each node in combo_u without considering the potential removed
-            # nodes in combo_s
-
-            d_min_u = min([sol.minimum_distance_to_solution( instance, v[2], without=[])
-                       for v in combo_u] + pairwise_d_u)
+            if not (sol.satisfies_cost_a(instance, a, nodes_u, [])):
+                break
+            d_min_u = min([sol.minimum_distance_to_solution_bound(instance, bound=of_MaxMin, u=v[2], without=[])
+                           for v in combo_u])
 
             # Check if new solution improves the latest depending on the selected criteria
+            new_improves_old = False
             if improvement_criteria == 'Dom':
-                new_improves_old = exchange_is_dominant(sol.of_MaxSum, sol.of_MaxMin,
-                                                        d_sum_u, d_min_u)
-            else:
-                if objective == 0:
-                    new_improves_old = sol.of_MaxSum < d_sum_u
-                else:
-                    new_improves_old = sol.of_MaxMin < d_min_u
-
+                new_improves_old = exchange_is_dominant(0, of_MaxMin,
+                                                        0, d_min_u)
             if new_improves_old:
-                # Add best unselected node(s) to solution
-                for u in nodes_u:
-                    sol.add_to_solution(instance, u)
-                # print(sol.of_MaxMin, sol.of_MaxSum, sol.total_cost, sol.total_capacity, sol.solution_set)
-                return True
+                # # print(switch)
+                # # Add best unselected node(s) to solution
+                # for u in nodes_u:
+                #     sol.add_to_solution(instance, u)
+                # # print(sol.of_MaxMin, sol.of_MaxSum, sol.total_cost, sol.total_capacity, sol.solution_set)
+                return True, nodes_u, []
 
     else:
         # For all the possible combinations between the selected elements
@@ -129,8 +121,9 @@ def try_improvement(sol: Solution, instance, objective: int, improvement_criteri
             for combo_u in unselected_combinations:
                 nodes_u = [u[2] for u in combo_u]  # Get node IDs
                 # If the constraints are not met with the new combo, try new exchange
-                if not (sol.satisfies_cost_a(instance, a, nodes_u, nodes_s)
-                        and sol.satisfies_capacity_c(instance, c, nodes_u, nodes_s)):
+                if not (sol.satisfies_cost_a(instance, a, nodes_u, nodes_s)):
+                    break
+                if not (sol.satisfies_capacity_c(instance, c, nodes_u, nodes_s)):
                     continue
                 # Pairwise distances between all the nodes in combo_u
                 pairwise_d_u = get_all_pairwise_distances(instance, nodes_u)
@@ -144,33 +137,30 @@ def try_improvement(sol: Solution, instance, objective: int, improvement_criteri
                 if not exchange_is_dominant(d_sum_s,0,d_sum_u,0):
                     continue
 
-                d_min_u = min([sol.minimum_distance_to_solution(instance, v[2], without=nodes_s)
-                           for v in combo_u] + pairwise_d_u)
+                d_min_u = min([sol.minimum_distance_to_solution_bound(instance, bound=of_MaxMin, u=v[2], without=nodes_s)
+                           for v in combo_u])
 
                 # TODO IMPROVE CODE
                 # Check if new solution improves the latest depending on the selected criteria
+                new_improves_old = False
                 if improvement_criteria == 'Dom':
                     new_improves_old = exchange_is_dominant(d_sum_s, d_min_s,
                                                             d_sum_u, d_min_u)
-                else:
-                    if objective == 0:
-                        new_improves_old = d_sum_s < d_sum_u
-                    else:
-                        new_improves_old = d_min_s < d_min_u
 
                 if new_improves_old:
-                    # Remove worst selected node(s) from solution
-                    for s in nodes_s:
-                        sol.remove_from_solution(instance, s)
-                    # Add best unselected node(s) to solution
-                    for u in nodes_u:
-                        sol.add_to_solution(instance, u)
-                    # print(sol.of_MaxMin, sol.of_MaxSum, sol.total_cost, sol.total_capacity, sol.solution_set)
-                    return True
-    return False
+                    # # Remove worst selected node(s) from solution
+                    # for s in nodes_s:
+                    #     sol.remove_from_solution(instance, s)
+                    # # Add best unselected node(s) to solution
+                    # for u in nodes_u:
+                    #     sol.add_to_solution(instance, u)
+                    # # print(sol.of_MaxMin, sol.of_MaxSum, sol.total_cost, sol.total_capacity, sol.solution_set)
+                    # # print(switch)
+                    return True, nodes_u, nodes_s
+    return False, [], []
 
 
-def create_selected_unselected(instance, sol: Solution, objective: int):
+def create_selected_unselected(instance, sol: Solution, cl:dict):
     '''Takes a solution instance as input and returns two lists - one containing selected items
     and the other containing unselected items based on the solution. The selected elements are
     sorted in reverse order according to the objective function. Meanwhile, the unselected
@@ -183,7 +173,7 @@ def create_selected_unselected(instance, sol: Solution, objective: int):
       selected (list): contains the candidates selected in the current solution.
       unselected (list): contains the unselected candidates in the current solution.
     '''
-    cl = create_candidate_list(sol, instance)
+    # cl = create_candidate_list(sol, instance)
 
     selected = []
     unselected = []
@@ -193,8 +183,5 @@ def create_selected_unselected(instance, sol: Solution, objective: int):
             selected.append(v)
         else:
             unselected.append(v)
-
-    selected.sort(key=lambda row: row[objective])  # Sort from worst to best
-    unselected.sort(key=lambda row: -row[objective])  # Sort from best to worst
 
     return selected, unselected

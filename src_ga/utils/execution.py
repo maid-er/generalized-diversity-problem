@@ -82,19 +82,19 @@ def execute_instance(path: str, results: OutputHandler, seed) -> float:
             continue
 
         # Set termination criteria
-        termination = get_termination("n_gen", 200)
+        termination = get_termination("n_gen", 500)
 
         # Run the optimization
         res = minimize(problem,
                        algorithm,
                        termination,
                        seed=seed,
-                       save_history=True,
-                       verbose=True)
+                       save_history=False,
+                       verbose=False)
 
         elapsed = datetime.datetime.now() - start
         secs = round(elapsed.total_seconds(), 2)
-        logging.info('Execution time: %s', secs)
+        # logging.info('Execution time: %s', secs)
 
         # Visualize the Pareto front (objective space)
         fig = px.scatter(x=[-f[0] for f in res.F], y=[-f[1] for f in res.F])
@@ -104,24 +104,24 @@ def execute_instance(path: str, results: OutputHandler, seed) -> float:
         result_table = np.round(-res.F,3).T.tolist() + constraints.tolist()
 
         # Print the best solutions found
-        logging.info("Best solutions (with binary decision variables):")
+        # logging.info("Best solutions (with binary decision variables):")
         result_nodes = []
         for sol in res.X:
             sol = [i+1 for i, x in enumerate(sol) if x]
             selected_nodes = ' - '.join([str(s+1) for s in sorted(sol)])
             result_nodes.append(selected_nodes)
-            logging.info(sol)
+            # logging.info(sol)
 
         result_table = [result_nodes] + result_table
         result_table = pd.DataFrame(np.array(result_table).T,
                                     columns=['Solution', 'MaxSum', 'MaxMin', 'Cost', 'Capacity'])
 
-        results.save(result_table, secs, [], '', path, algo)
+        results.save(result_table, secs, [], '', path, algo, seed)
 
     else:
-        logging.warning('No solution found for %s', path)
+        # logging.warning('No solution found for %s', path)
 
-        results.save(result_table, secs, [], '', path, algo)
+        results.save(result_table, secs, [], '', path, algo, seed)
 
 
 def execute_directory(directory: str, seed):

@@ -7,7 +7,9 @@ import numpy as np
 import pandas as pd
 
 from algorithms import grasp
+from constructives.biased_randomized import create_candidate_list
 from structure import instance
+from structure.solution import Solution
 
 from utils.results import OutputHandler
 from utils.logger import load_logger
@@ -46,7 +48,7 @@ def execute_instance(path: str, config: dict, results: OutputHandler, rng, seed)
     start = datetime.datetime.now()
     # Construct a solution for the IT defined in config
     results_dict = []
-    policies = ["D"]
+    policies = ["C", "D"]
     cost_focus = [0,1,2,3]
     cost_weight = [0,1,2,3,4,5]
     # cost_focus = [0, 1]
@@ -58,13 +60,19 @@ def execute_instance(path: str, config: dict, results: OutputHandler, rng, seed)
 
     combinations_dict_alpha = {comb: [0, 1] for comb in combinations} # initial value for alpha interval
 
+    # Create the complete solution for deconstruct process, saving time creating one time
+    complete_solution = Solution()
+    for u in range(inst['n']):
+        complete_solution.add_to_solution(inst, u)
+    cl_complete_solution = create_candidate_list(complete_solution, inst)
+
     execute_combinations(config, True, combinations, combinations_dict_alpha, max_time, start,
-                             inst, results_dict, all_solutions, result_table, rng)
+                             inst, results_dict, all_solutions, result_table, rng, complete_solution, cl_complete_solution)
+
+    if len(all_solutions) == 0:
+        return 0
 
     post_combinations, pf_idx = scan_results(combinations, results_dict, start, config)
-
-    # Eliminate the rest of the all_solutions to save ram
-    # results_dict = [results_dict[i] for i in pf_idx if results_dict[i]["combination"] in post_combinations]
 
     valid_indices = [
         i for i in pf_idx
@@ -75,25 +83,29 @@ def execute_instance(path: str, config: dict, results: OutputHandler, rng, seed)
     # result_table = [result_table[i] for i in valid_indices]
     # all_solutions = [all_solutions[i] for i in valid_indices]
 
-    #Update the alpha interval for the combinations
+
+    # Update the alpha interval for the combinations
 
     results_alpha = analyze_alpha(results_dict)
-    print(results_alpha)
+    # print(results_alpha)
 
     if config.get("parameters").get("std_multiplier") != "All":
 
         for key, value in results_alpha.items():
 
-            combinations_dict_alpha[key] = [ max(0, value["mean"] - config.get("parameters").get("std_multiplier") * value["std"]), min(1, value["mean"] + config.get("parameters").get("std_multiplier") * value["std"] )]
+            combinations_dict_alpha[key] = [max(0, value["mean"] - config.get("parameters").get("std_multiplier") * value["std"]), min(1, value["mean"] + config.get("parameters").get("std_multiplier") * value["std"] )]
 
         # print(combinations_dict_alpha)
 
+    elapsed = datetime.datetime.now() - start
+    secs = round(elapsed.total_seconds(), 2)
+    # print('Execution scan$learn time: %s', secs)
 
     start = datetime.datetime.now()
 
-    print("Start With VND")
-    execute_combinations(config, False, post_combinations, combinations_dict_alpha, max_time, start,
-                         inst, results_dict, all_solutions, result_table, rng)
+    # print("Start With VND")
+    execute_combinations(config, False, combinations, combinations_dict_alpha, max_time, start,
+                         inst, results_dict, all_solutions, result_table, rng, complete_solution, cl_complete_solution)
 
     # Find non-dominated solutions among all constructions
 
@@ -109,12 +121,7 @@ def execute_instance(path: str, config: dict, results: OutputHandler, rng, seed)
     # Compute execution time
     elapsed = datetime.datetime.now() - start
     secs = round(elapsed.total_seconds(), 2)
-    print('Execution time: %s', secs)
-
-    current_pareto_front = dom_result_table[['MaxSum', 'MaxMin']].to_numpy()
-    ind = HV(ref_point=np.array([0.0, 0.0]))
-    hypervolume = ind((-1) * current_pareto_front)
-    print(hypervolume)
+    # print('Execution time: %s', secs)
 
     add_data = {
         'time': [secs],
@@ -132,9 +139,28 @@ def execute_instance(path: str, config: dict, results: OutputHandler, rng, seed)
                         ).replace('.', '')
     results.save(dom_result_table, add_data, algorithm_params, path, seed)
 
+    current_pareto_front = dom_result_table[['MaxSum', 'MaxMin']].to_numpy()
+    # Calculate hypervolume
+    # Si el frente de Pareto está vacío, devolver 0
+    if current_pareto_front.size == 0:
+        hypervolume = 0
+    else:
+        ind = HV(ref_point=np.array([0.0, 0.0]))
+        # *(-1) porque es un problema de maximización
+        try:
+            hypervolume = ind((-1) * current_pareto_front)
+        except:
+            return 0
+
+    # print(hypervolume)
+
+    return hypervolume
+
+
+
 
 def execute_combinations(config, preprocess, combinations,combinations_dict_alpha, max_time, start,
-                         inst, results_dict, all_solutions, result_table, rng):
+                         inst, results_dict, all_solutions, result_table, rng, complete_solution, cl_complete_solution):
 
     max_iterations = config.get('iterations') if not preprocess else config.get('pre_iterations') * len(combinations)
     for i in range(max_iterations):
@@ -144,12 +170,12 @@ def execute_combinations(config, preprocess, combinations,combinations_dict_alph
         if not preprocess:
             # If time is exceeded stop execution
             if datetime.timedelta(seconds=max_time) < datetime.datetime.now() - start:
-                print('Maximum allowed execution time is exceeded. Total IT: %s', i)
+                # print('Maximum allowed execution time is exceeded. Total IT: %s', i)
                 break
 
         # Run B-GRASP-VND
         # print(f'Finding solution #{i+1}')
-        solution_list = grasp.execute(inst, config, preprocess, combination, combinations_dict_alpha, i, results_dict, start, rng)
+        solution_list = grasp.execute(inst, config, preprocess, combination, combinations_dict_alpha, i, results_dict, start, rng, complete_solution, cl_complete_solution)
         # Save solution set found in this IT
         all_solutions += solution_list
 
@@ -198,21 +224,23 @@ def plot_solutions(results_dict, color_map):
         key = sol["combination"]
         color = color_map[key]
         label_i_comp = 0
+        if solution.of_MaxMin == 0:
+            continue
         if key[1] != "focus":
             label_i_comp = 1
         # label = f"{key[0]} | {key[1]} | {key[2]}"
         label_i = str((4* label_i_comp + key[2] + 1))
         label = f"$\psi^{key[0]}_{label_i}$"
         if key not in used_labels:
-            plt.scatter(solution.of_MaxMin, solution.of_MaxSum, color=color, label=label)
+            plt.scatter(solution.of_MaxMin, solution.of_MaxSum, color=color)
             used_labels.add(key)
         else:
             plt.scatter(solution.of_MaxMin, solution.of_MaxSum, color=color)
         plt.scatter(solution.of_MaxMin, solution.of_MaxSum, color=color)
 
-    plt.xlabel('MaxMin')
-    plt.ylabel('MaxSum')
-    plt.legend(title="Combinations", loc="upper right")  # ⭐ Legend in top right
+    plt.xlabel('Max-Min')
+    plt.ylabel('Max-Sum')
+    # plt.legend(title="Combinations", loc="upper right")  # ⭐ Legend in top right
     plt.grid(True)
     plt.show()
 
@@ -317,10 +345,10 @@ def scan_results(combinations, results_dict, start, config):
 
     stats, pf_idx, total_pf = compute_global_pareto_stats(results_dict, config)
 
-    print(f"Global PF size = {total_pf}")
+    # print(f"Global PF size = {total_pf}")
 
-    for combo, s in stats.items():
-        print(f"{combo}: {s['pareto']} / {total_pf}  → {s['percentage']:.1f}%")
+    # for combo, s in stats.items():
+    #     print(f"{combo}: {s['pareto']} / {total_pf}  → {s['percentage']:.1f}%")
 
     post_combinations = []
     for combo, s in stats.items():

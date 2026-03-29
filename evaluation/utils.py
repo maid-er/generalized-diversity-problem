@@ -7,7 +7,7 @@ from plotly.subplots import make_subplots
 
 from pymoo.indicators.hv import HV
 
-from reference_front import calculate_reference_front
+from reference_front import calculate_reference_front, get_nondominated_solutions
 from performance_indicators import set_coverage, epsilon_indicator_mul
 
 
@@ -34,6 +34,7 @@ def get_coincident_instances(result_dir: str, inst_set: str, inst_subset: str) -
     #                     if not (('b03' in i) and ('k02' in i))]
     common_instances = [i for i in common_instances]
 
+    # common_instances = [i for i in common_instances if i == "MDG-b_02_n500_b02_m50_k02"]
 
     return common_instances
 
@@ -44,9 +45,13 @@ def plot_pareto_fronts(output_dir: str, inst_set: str, inst_subset: str, instanc
     color_count = 0
 
     total_rows = max(1,len(instances) // 2 + len(instances) % 2)
+    is_special_alg = ['NSGA2', 'SPEA2', '[2] NSGA2', '[3] SPEA2']
 
     fig = make_subplots(rows=total_rows, cols=2, subplot_titles=instances)
-    for alg in os.listdir(output_dir):
+    algorithms = os.listdir(output_dir)
+    algorithms.sort(key=lambda alg: alg in is_special_alg)
+
+    for alg in algorithms:
         if alg.endswith('.csv') or alg.endswith('.html'):
             continue
 
@@ -65,7 +70,7 @@ def plot_pareto_fronts(output_dir: str, inst_set: str, inst_subset: str, instanc
                                          ' & Capacity: ' + result_table.Capacity.astype(str))
 
             result_table.sort_values(by=['MaxMin', 'MaxSum'], inplace=True)
-            is_special_alg = alg in ['NSGA2', 'SPEA2']
+            is_special_alg = alg in ['NSGA2', 'SPEA2', '[2] NSGA2', '[3] SPEA2']
             marker_style = dict(
                 color=colors[color_count%10],
                 symbol='x' if is_special_alg else 'circle',
@@ -95,14 +100,14 @@ def plot_pareto_fronts(output_dir: str, inst_set: str, inst_subset: str, instanc
     fig.update_traces(marker={'size': 6})
     fig.update_xaxes(title_text='MaxMin')
     fig.update_yaxes(title_text='MaxSum')
-    fig.update_layout(height=400 * total_rows)
+    fig.update_layout(height=800 * total_rows)
 
     print('Saving figure')
     fig.write_html('output/fig.html')
     fig.show()
 
 
-def calculate_performance_indicators(result_dir, inst_set, inst_subset, instances: list):
+def calculate_performance_indicators_average(result_dir, inst_set, inst_subset, instances: list):
     '''Calculates performance indicator and saves results in a CSV file'''
     # Initialize result summary table
     general_indicators = pd.DataFrame(columns=['inst', 'alg_config', 'time', 'HV', 'SC', 'eps'])
@@ -173,6 +178,120 @@ def calculate_performance_indicators(result_dir, inst_set, inst_subset, instance
             # summary.drop(columns=['seed'], inplace=True)
             general_indicators = general_indicators._append(
                 pd.DataFrame({'inst': [inst]}).join(summary))
+
+
+    # convert all columns that should be numeric
+    for col in ["HV", "SC", "eps"]:
+        general_indicators[col] = pd.to_numeric(general_indicators[col], errors="coerce")
+    # Save table with indicator values for each instance-algorithm
+    general_indicators['eps'].replace([np.inf, -np.inf], np.nan, inplace=True)
+    general_indicators.to_csv(os.path.join(result_dir, 'indicators.csv'))
+
+    # Save table with mean values of the indicators for each algorithm
+    mean_indicators = general_indicators.groupby(['alg_config']).mean(numeric_only=True).round(2)
+    mean_indicators.to_csv(os.path.join(result_dir, 'mean_indicators.csv'))
+
+    # Save table with median values of the indicators for each algorithm
+    mean_indicators = general_indicators.groupby(['alg_config']).median(numeric_only=True).round(2)
+    mean_indicators.to_csv(os.path.join(result_dir, 'median_indicators.csv'))
+
+
+
+
+def calculate_performance_indicators(result_dir, inst_set, inst_subset, instances: list):
+    '''Calculates performance indicator and saves results in a CSV file'''
+    # Initialize result summary table
+    general_indicators = pd.DataFrame(columns=['inst', 'alg_config', 'time', 'HV', 'SC', 'eps'])
+
+    # Loop all analyzed algorithms
+    algorithms_config = os.listdir(result_dir)
+    for alg in algorithms_config:
+        if alg.endswith('.csv') or alg.endswith('.html'):
+            continue
+        print(f'Evaluating algorithm {alg}')
+
+        # Evaluated instance set path
+        set_path = os.path.join(result_dir, alg, inst_set, inst_subset)
+        for count, inst in enumerate(instances):
+            if inst.endswith('.csv') or inst.endswith('.html'):
+                continue
+            print(f'    Evaluating instance {count+1}/{len(instances)}')
+            inst_path = os.path.join(set_path, inst)
+
+            # Obtain reference pareto front considering all the solutions
+            reference_pareto_front = calculate_reference_front(result_dir,
+                                                               inst_set,
+                                                               inst_subset,
+                                                               inst)
+            if reference_pareto_front.empty:
+                continue
+            reference_pareto_front = reference_pareto_front[['MaxSum', 'MaxMin']].to_numpy()
+
+
+            # Loop all the executions run during the experiments (1 csv per execution)
+            executions = os.listdir(inst_path)
+            all_exec_solutions = []
+            # --- Read execution times ---
+            time_file = os.path.join(inst_path, "ex_times.csv")
+            mean_time = np.nan
+
+            if os.path.exists(time_file):
+                times_df = pd.read_csv(time_file)
+
+                # average time across seeds
+                mean_time = times_df["time"].mean()
+            else:
+                time_file = os.path.join(inst_path, "add_data.csv")
+                if os.path.exists(time_file):
+                    times_df = pd.read_csv(time_file)
+
+                    # average time across seeds
+                    mean_time = times_df["time"].mean()
+
+            for exec in executions:
+                if exec in ['add_data.csv', 'ex_times.csv']:  # Ignore execution time csv
+                    continue
+                solutions = pd.read_csv(os.path.join(inst_path, exec))
+                if 'Nodes' in solutions.columns:
+                    solutions = solutions.rename(columns={'Nodes': 'Solution'})
+
+                all_exec_solutions.append(solutions)
+            if not all_exec_solutions:
+                continue
+
+            # 2. Combine and find the non-dominated front for the WHOLE algorithm
+            combined_df = pd.concat(all_exec_solutions, ignore_index=True)
+            # Drop duplicates to speed up the non-dominated check
+            combined_df = combined_df.drop_duplicates(subset=['MaxSum', 'MaxMin'])
+
+            # Filter to keep only the best solutions found across all runs
+            is_nondominated = get_nondominated_solutions(combined_df)
+            alg_front = combined_df[is_nondominated][['MaxSum', 'MaxMin']].to_numpy()
+
+            # 3. Calculate indicators for this consolidated front
+            ind = HV(ref_point=np.array([0.0, 0.0]))
+            max_hypervolume = ind((-1) * reference_pareto_front)
+
+            # Hypervolume
+            hv_alg = ind((-1) * alg_front) / max_hypervolume
+
+            # Set Coverage
+            sc_alg = set_coverage(alg_front, reference_pareto_front)
+
+            # Epsilon
+            eps_alg = epsilon_indicator_mul(alg_front, reference_pareto_front)
+
+            # 4. Save results (no more .mean() needed here as it's one result per algorithm)
+            summary = pd.DataFrame({
+                'inst': [inst],
+                'alg_config': [alg],
+                'time': [round(mean_time, 4)],
+                'HV': [round(hv_alg, 4)],
+                'SC': [round(sc_alg, 4)],
+                'eps': [round(eps_alg, 4)]
+            })
+
+            general_indicators = pd.concat([general_indicators, summary], ignore_index=True)
 
 
     # convert all columns that should be numeric
